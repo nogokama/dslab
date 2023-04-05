@@ -1,10 +1,18 @@
-use std::collections::{BinaryHeap, HashSet, VecDeque};
+use std::cell::RefCell;
+use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+use std::rc::Rc;
+use std::sync::mpsc::SyncSender;
+use std::sync::Arc;
 
+use futures::Future;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::distributions::{Alphanumeric, DistString};
 use rand::prelude::*;
 use rand_pcg::Pcg64;
 
+use crate::async_core::shared_state::{AwaitKey, EmptyData, EventSetter, SharedState, TimerFuture};
+use crate::async_core::task::Task;
+use crate::async_core::timer::Timer;
 use crate::component::Id;
 use crate::event::{Event, EventData, EventId};
 use crate::log::log_incorrect_event;
@@ -20,10 +28,15 @@ pub struct SimulationState {
     ordered_events: VecDeque<Event>,
     canceled_events: HashSet<EventId>,
     event_count: u64,
+
+    awaiters: HashMap<AwaitKey, Rc<RefCell<dyn EventSetter>>>,
+    timers: BinaryHeap<Timer>,
+
+    task_sender: SyncSender<Arc<Task>>,
 }
 
 impl SimulationState {
-    pub fn new(seed: u64) -> Self {
+    pub fn new(seed: u64, task_sender: SyncSender<Arc<Task>>) -> Self {
         Self {
             clock: 0.0,
             rand: Pcg64::seed_from_u64(seed),
@@ -31,6 +44,10 @@ impl SimulationState {
             ordered_events: VecDeque::new(),
             canceled_events: HashSet::new(),
             event_count: 0,
+            awaiters: HashMap::new(),
+            timers: BinaryHeap::new(),
+
+            task_sender,
         }
     }
 
@@ -205,5 +222,55 @@ impl SimulationState {
         // Because the sorting order of events is inverted to be used with BinaryHeap
         output.reverse();
         output
+    }
+
+    pub fn peek_timer(&self) -> Option<&Timer> {
+        self.timers.peek()
+    }
+
+    pub fn next_timer(&mut self) -> Option<Timer> {
+        if let Some(timer) = self.timers.pop() {
+            self.clock = timer.time;
+            return Some(timer);
+        }
+        return None;
+    }
+
+    pub fn has_handler_on_key(&self, key: &AwaitKey) -> bool {
+        self.awaiters.contains_key(key)
+    }
+
+    pub fn set_event_for_await_key(&mut self, key: &AwaitKey, event: Event) -> bool {
+        if !self.awaiters.contains_key(key) {
+            return false;
+        }
+
+        let shared_state = self.awaiters.remove(key).unwrap();
+
+        shared_state.borrow_mut().set_ok_completed_with_event(event);
+
+        return true;
+    }
+
+    pub fn spawn(&mut self, future: impl Future<Output = ()> + 'static) {
+        let task = Arc::new(Task::new(future, self.task_sender.clone()));
+
+        self.task_sender.send(task).expect("too many tasks queued");
+    }
+
+    pub fn wait_for(&mut self, timeout: f64) -> TimerFuture {
+        let state = Rc::new(RefCell::new(SharedState::<EmptyData>::default()));
+
+        self.timers.push(Timer::new(self.time() + timeout, state.clone()));
+
+        TimerFuture { state }
+    }
+
+    pub fn add_timer_on_state(&mut self, timeout: f64, state: Rc<RefCell<dyn EventSetter>>) {
+        self.timers.push(Timer::new(self.time() + timeout, state.clone()));
+    }
+
+    pub fn add_awaiter_handler(&mut self, key: AwaitKey, state: Rc<RefCell<dyn EventSetter>>) {
+        self.awaiters.insert(key, state);
     }
 }

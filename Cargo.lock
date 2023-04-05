@@ -104,6 +104,51 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46016233fc1bb55c23b856fe556b7db6ccd05119a0a392e04f0b3b7c79058f16"
 
 [[package]]
+name = "async-dslab-core"
+version = "0.1.0"
+dependencies = [
+ "atty",
+ "colored",
+ "downcast-rs",
+ "dslab-core",
+ "env_logger 0.9.3",
+ "erased-serde",
+ "futures",
+ "log 0.4.17",
+ "rand 0.8.5",
+ "rand_pcg 0.3.1",
+ "serde",
+ "serde_json",
+ "serde_type_name",
+]
+
+[[package]]
+name = "async-network-ping-pong"
+version = "0.1.0"
+dependencies = [
+ "async-dslab-core",
+ "clap 3.2.23",
+ "dslab-core",
+ "env_logger 0.9.3",
+ "log 0.4.17",
+ "serde",
+ "sugars",
+]
+
+[[package]]
+name = "async-ping-pong"
+version = "0.1.0"
+dependencies = [
+ "async-dslab-core",
+ "clap 3.2.23",
+ "dslab-core",
+ "env_logger 0.9.3",
+ "log 0.4.17",
+ "serde",
+ "sugars",
+]
+
+[[package]]
 name = "atk"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -802,6 +847,7 @@ dependencies = [
  "dyn-clone",
  "env_logger 0.9.3",
  "erased-serde",
+ "futures",
  "log 0.4.17",
  "rand 0.8.5",
  "rand_pcg 0.3.1",

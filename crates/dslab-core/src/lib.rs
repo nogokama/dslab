@@ -1,6 +1,7 @@
 #![warn(missing_docs)]
 #![doc = include_str!("../readme.md")]
 
+pub mod async_core;
 pub mod component;
 pub mod context;
 pub mod event;
