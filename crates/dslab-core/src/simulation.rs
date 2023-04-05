@@ -3,7 +3,9 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::mpsc::sync_channel;
 
+use futures::Future;
 use log::Level::Trace;
 use log::{debug, log_enabled, trace};
 use rand::distributions::uniform::{SampleRange, SampleUniform};
@@ -11,6 +13,8 @@ use rand::prelude::Distribution;
 use serde_json::json;
 use serde_type_name::type_name;
 
+use crate::async_core::executor::Executor;
+use crate::async_core::shared_state::AwaitKey;
 use crate::component::Id;
 use crate::context::SimulationContext;
 use crate::handler::EventHandler;
@@ -24,16 +28,22 @@ pub struct Simulation {
     name_to_id: HashMap<String, Id>,
     names: Rc<RefCell<Vec<String>>>,
     handlers: Vec<Option<Rc<RefCell<dyn EventHandler>>>>,
+
+    executor: Executor,
 }
 
 impl Simulation {
     /// Creates a new simulation with specified random seed.
     pub fn new(seed: u64) -> Self {
+        const MAX_QUEUED_TASKS: usize = 10_000;
+        let (task_sender, ready_queue) = sync_channel(MAX_QUEUED_TASKS);
+
         Self {
-            sim_state: Rc::new(RefCell::new(SimulationState::new(seed))),
+            sim_state: Rc::new(RefCell::new(SimulationState::new(seed, task_sender))),
             name_to_id: HashMap::new(),
             names: Rc::new(RefCell::new(Vec::new())),
             handlers: Vec::new(),
+            executor: Executor { ready_queue },
         }
     }
 
@@ -339,34 +349,96 @@ impl Simulation {
     /// status = sim.step();
     /// assert!(!status);
     /// ```
+
     pub fn step(&mut self) -> bool {
-        let next = self.sim_state.borrow_mut().next_event();
-        if let Some(event) = next {
-            if let Some(handler_opt) = self.handlers.get(event.dest as usize) {
-                if log_enabled!(Trace) {
-                    let src_name = self.lookup_name(event.src);
-                    let dest_name = self.lookup_name(event.dest);
-                    trace!(
-                        target: &dest_name,
-                        "[{:.3} {} {}] {}",
-                        event.time,
-                        crate::log::get_colored("EVENT", colored::Color::BrightBlack),
-                        dest_name,
-                        json!({"type": type_name(&event.data).unwrap(), "data": event.data, "src": src_name})
-                    );
-                }
-                if let Some(handler) = handler_opt {
-                    handler.borrow_mut().on(event);
+        if self.process_task() {
+            return true;
+        }
+
+        let mut sim_state = self.sim_state.borrow_mut();
+        let next_timer = sim_state.peek_timer();
+        let next_event = sim_state.peek_event();
+
+        match (next_timer, next_event) {
+            (None, None) => false,
+            (_, None) => {
+                drop(sim_state);
+                self.process_timer();
+                true
+            }
+            (None, _) => {
+                drop(sim_state);
+                self.process_event();
+                true
+            }
+            _ => {
+                if next_timer.unwrap().time <= next_event.unwrap().time {
+                    drop(sim_state);
+                    self.process_timer();
                 } else {
-                    log_undelivered_event(event);
+                    drop(sim_state);
+                    self.process_event();
                 }
+                true
+            }
+        }
+    }
+
+    fn process_timer(&mut self) {
+        let mut next_timer = self.sim_state.borrow_mut().next_timer().unwrap();
+
+        next_timer.state.as_ref().borrow_mut().set_completed();
+
+        self.process_task();
+    }
+
+    fn process_event(&mut self) -> bool {
+        let event = self.sim_state.borrow_mut().next_event().unwrap();
+
+        let await_key = AwaitKey {
+            from: event.src,
+            to: event.dest,
+            msg_type: event.data.as_ref().type_id(),
+        };
+
+        if self.sim_state.borrow().has_handler_on_key(&await_key) {
+            self.sim_state.borrow_mut().set_event_for_await_key(&await_key, event);
+
+            self.process_task();
+            return true;
+        }
+        if let Some(handler_opt) = self.handlers.get(event.dest as usize) {
+            println!("try to find handler");
+            if log_enabled!(Trace) {
+                let src_name = self.lookup_name(event.src);
+                let dest_name = self.lookup_name(event.dest);
+                trace!(
+                    target: &dest_name,
+                    "[{:.3} {} {}] {}",
+                    event.time,
+                    crate::log::get_colored("EVENT", colored::Color::BrightBlack),
+                    dest_name,
+                    json!({"type": type_name(&event.data).unwrap(), "data": event.data, "src": src_name})
+                );
+            }
+            if let Some(handler) = handler_opt {
+                handler.borrow_mut().on(event);
             } else {
                 log_undelivered_event(event);
             }
-            true
         } else {
-            false
+            log_undelivered_event(event);
         }
+
+        return true;
+    }
+
+    fn process_task(&self) -> bool {
+        self.executor.process_task()
+    }
+
+    pub fn spawn(&self, future: impl Future<Output = ()> + 'static) {
+        self.sim_state.borrow_mut().spawn(future);
     }
 
     /// Performs the specified number of steps through the simulation.
