@@ -13,6 +13,7 @@ use crate::event::{Event, EventData, EventId};
 use crate::state::SimulationState;
 
 /// A facade for accessing the simulation state and producing events from simulation components.
+#[derive(Clone)]
 pub struct SimulationContext {
     id: Id,
     name: String,
@@ -657,7 +658,7 @@ impl SimulationContext {
         self.sim_state.borrow_mut().wait_for(timeout)
     }
 
-    pub fn spawn(&mut self, future: impl Future<Output = ()> + 'static) {
+    pub fn spawn(&self, future: impl Future<Output = ()> + 'static) {
         self.sim_state.borrow_mut().spawn(future);
     }
 
@@ -674,12 +675,25 @@ impl SimulationContext {
         let state = Rc::new(RefCell::new(SharedState::<T>::default()));
         state.borrow_mut().shared_content = AwaitResult::timeout_with(await_key.from, await_key.to);
 
-        self.sim_state.borrow_mut().add_timer_on_state(timeout, state.clone());
+        if timeout >= 0. {
+            self.sim_state.borrow_mut().add_timer_on_state(timeout, state.clone());
+        }
 
         self.sim_state
             .borrow_mut()
             .add_awaiter_handler(await_key, state.clone());
 
         EventFuture { state }
+    }
+
+    pub async fn async_handle_event<T>(&mut self, src: Id, dst: Id) -> (Event, T)
+    where
+        T: EventData,
+    {
+        let result = self.async_wait_for_event::<T>(src, dst, -1.).await;
+        match result {
+            AwaitResult::Ok(t) => t,
+            AwaitResult::Timeout(_) => panic!("unexpected timeout"),
+        }
     }
 }
