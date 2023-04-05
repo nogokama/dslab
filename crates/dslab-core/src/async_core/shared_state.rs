@@ -140,6 +140,67 @@ impl Future for TimerFuture {
     }
 }
 
+/// ```rust
+///
+///  pub struct AwaitKey {
+///     from : Id,
+///     to: Id,
+///     msg_type: TypeId,
+///     msg_details_hash: u64,
+///  }
+///
+///  let simulation = Simulation::new(42);
+///
+///  let ctx = simulation.create_context("node");
+///
+///  ctx.async_handle_event::<LibraryNetworkMessage>(CustomMsgDetails::LibraryNetwork(NetworkDetail{from: "somebody"}));
+/// ```
+///
+///``` rust
+/// pub type EventDetails = u64
+///
+/// pub trait EventDetailedData: EventData {
+///     fn get_details_key(&self) -> u64
+/// }
+///
+/// struct InternalDataTransfer {
+///    src: u64,
+///
+///    dst: u64,
+///    internal_type: String,
+///}
+/// impl Data {
+///   fn get_details_key(&self) -> u64 {
+///        static mut MAPPING: Option<HashMap<(u64, String), u64>> = None;
+///        static mut NEXT_KEY: u64 = 0;
+///
+///        unsafe {
+///            MAPPING
+///                .get_or_insert_with(HashMap::new)
+///                .entry((self.dst, self.internal_type.clone()))
+///                .or_insert_with(|| {
+///                    let key = NEXT_KEY;
+///                    NEXT_KEY += 1;
+///                    key
+///                })
+///               .clone()
+///        }
+///    }
+/// }
+///```
+/// --------------------------------------
+/// ```rust
+/// #[derive(EventDetailedData)]
+/// pub struct Data {
+///     src: Id,
+///     #[EventDetailsKey]
+///     dst: Id,
+///     #[EventDetailsKey]
+///     internal_type: Type,
+///     content: String,
+/// }
+///```
+///
 #[derive(Hash, PartialEq, Eq, Debug, Clone)]
 pub struct AwaitKey {
     pub from: Id,
