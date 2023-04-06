@@ -1,13 +1,13 @@
 use std::{cell::RefCell, rc::Rc};
 
+use dslab_core::Simulation;
 use process::StartMessage;
 use sugars::{rc, refcell};
 
-use async_dslab_core::{async_context::AsyncSimulationContext, async_simulation::AsyncSimulation};
 mod process;
 
 fn main() {
-    let mut simulation = AsyncSimulation::new(42);
+    let mut simulation = Simulation::new(42);
 
     let pinger_name = "pinger";
     let ponger_name = "ponger";

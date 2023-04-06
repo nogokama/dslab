@@ -1,7 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use async_dslab_core::{async_context::AsyncSimulationContext, shared_state::AwaitResult};
-use dslab_core::{cast, Event, EventHandler, Id};
+use dslab_core::{async_core::shared_state::AwaitResult, cast, Event, EventHandler, Id, SimulationContext};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -16,7 +15,7 @@ pub struct StartMessage {
 
 pub struct Process {
     pub peers: Rc<RefCell<Vec<Id>>>,
-    pub ctx: AsyncSimulationContext,
+    pub ctx: SimulationContext,
     pub is_pinger: bool,
 }
 
