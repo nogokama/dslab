@@ -408,7 +408,6 @@ impl Simulation {
             return true;
         }
         if let Some(handler_opt) = self.handlers.get(event.dest as usize) {
-            println!("try to find handler");
             if log_enabled!(Trace) {
                 let src_name = self.lookup_name(event.src);
                 let dest_name = self.lookup_name(event.dest);
