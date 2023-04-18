@@ -5,7 +5,6 @@ use dslab_network::network::Network;
 
 use serde::Serialize;
 
-
 #[derive(Serialize)]
 pub struct StartMessage {}
 

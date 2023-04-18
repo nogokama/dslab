@@ -10,7 +10,7 @@ use std::{
     task::{Poll, Waker},
 };
 
-
+pub type DetailsKey = u64;
 
 #[derive(Serialize)]
 pub struct EmptyData {}
@@ -144,6 +144,7 @@ pub struct AwaitKey {
     pub from: Id,
     pub to: Id,
     pub msg_type: TypeId,
+    details: DetailsKey,
 }
 
 impl AwaitKey {
@@ -152,6 +153,30 @@ impl AwaitKey {
             from,
             to,
             msg_type: TypeId::of::<T>(),
+            details: 0,
+        }
+    }
+
+    pub fn new_by_ref(from: Id, to: Id, data: &dyn EventData) -> Self {
+        Self {
+            from,
+            to,
+            msg_type: data.type_id(),
+            details: 0,
+        }
+    }
+
+    pub fn new_with_details(
+        from: Id,
+        to: Id,
+        data: &dyn EventData,
+        details_getter: fn(&dyn EventData) -> DetailsKey,
+    ) -> Self {
+        Self {
+            from,
+            to,
+            msg_type: data.type_id(),
+            details: details_getter(data),
         }
     }
 }

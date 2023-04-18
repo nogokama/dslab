@@ -669,11 +669,7 @@ impl SimulationContext {
     where
         T: EventData,
     {
-        let await_key = AwaitKey {
-            from: src,
-            to: dst,
-            msg_type: std::any::TypeId::of::<T>(),
-        };
+        let await_key = AwaitKey::new::<T>(src, dst);
 
         let state = Rc::new(RefCell::new(SharedState::<T>::default()));
         state.borrow_mut().shared_content = AwaitResult::timeout_with(await_key.from, await_key.to);

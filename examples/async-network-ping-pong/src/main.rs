@@ -1,11 +1,9 @@
-
-
 use std::collections::BTreeSet;
 use std::io::Write;
 use std::time::Instant;
 
 use clap::Parser;
-use dslab_core::{Simulation};
+use dslab_core::Simulation;
 
 use dslab_network::{constant_bandwidth_model::ConstantBandwidthNetwork, network::Network};
 use env_logger::Builder;
