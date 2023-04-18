@@ -1,12 +1,12 @@
-use std::{cell::RefCell, rc::Rc};
+
 
 use std::collections::BTreeSet;
 use std::io::Write;
 use std::time::Instant;
 
 use clap::Parser;
-use dslab_core::{Id, Simulation, SimulationContext};
-use dslab_network::topology_model::TopologyNetwork;
+use dslab_core::{Simulation};
+
 use dslab_network::{constant_bandwidth_model::ConstantBandwidthNetwork, network::Network};
 use env_logger::Builder;
 use process::NetworkProcess;
@@ -54,7 +54,7 @@ fn main() {
         .init();
 
     let mut sim = Simulation::new(42);
-    let mut root = sim.create_context("root");
+    let root = sim.create_context("root");
 
     let network_opt = if args.use_network {
         let network_model = rc!(refcell!(ConstantBandwidthNetwork::new(1000., 0.001)));
@@ -66,9 +66,6 @@ fn main() {
     } else {
         None
     };
-
-    let mut net_processes = Vec::new();
-    let mut processes = Vec::new();
 
     let id_offset = args.use_network as u32;
 
@@ -96,10 +93,9 @@ fn main() {
                 network.clone(),
                 sim.create_context(&proc_name),
             );
-            sim.add_handler(&proc_name, rc!(refcell!(proc.clone())));
+            sim.add_handler(&proc_name, rc!(refcell!(proc)));
             let host = format!("host{}", 2 - i % 2);
             network.borrow_mut().set_location(proc_id, &host);
-            net_processes.push(proc);
         } else {
             let proc = Process::new(
                 Vec::from_iter(peers),
@@ -108,8 +104,7 @@ fn main() {
                 iterations,
                 sim.create_context(&proc_name),
             );
-            sim.add_handler(&proc_name, rc!(refcell!(proc.clone())));
-            processes.push(proc);
+            sim.add_handler(&proc_name, rc!(refcell!(proc)));
         }
         root.emit(StartMessage {}, proc_id, 0.);
     }

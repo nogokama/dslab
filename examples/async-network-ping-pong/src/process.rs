@@ -1,10 +1,10 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use dslab_core::{cast, event::EventData, Event, EventHandler, Id, SimulationContext};
 use dslab_network::network::Network;
-use futures::{stream::FuturesUnordered, StreamExt};
+
 use serde::Serialize;
-use sugars::{rc, refcell};
+
 
 #[derive(Serialize)]
 pub struct StartMessage {}
@@ -19,7 +19,6 @@ pub struct PongMessage {
     payload: f64,
 }
 
-#[derive(Clone)]
 pub struct Process {
     peer_count: usize,
     peers: RefCell<Vec<Id>>,
@@ -51,7 +50,7 @@ impl Process {
             return;
         }
 
-        for i in 0..=self.iterations {
+        for _i in 0..=self.iterations {
             let peer = self.peers.borrow()[self.ctx.gen_range(0..self.peer_count)];
             self.send(
                 PingMessage {
@@ -91,7 +90,6 @@ impl EventHandler for Process {
     }
 }
 
-#[derive(Clone)]
 pub struct NetworkProcess {
     id: Id,
     peer_count: usize,
@@ -131,7 +129,7 @@ impl NetworkProcess {
             return;
         }
 
-        for i in 0..=self.iterations {
+        for _i in 0..=self.iterations {
             let peer = self.peers.borrow()[self.ctx.gen_range(0..self.peer_count)];
             self.net.borrow_mut().send_event(
                 PingMessage {
