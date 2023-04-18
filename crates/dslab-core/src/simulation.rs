@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::mpsc::{channel, sync_channel};
+use std::sync::mpsc::channel;
 
 use futures::Future;
 use log::Level::Trace;
@@ -35,9 +35,7 @@ pub struct Simulation {
 impl Simulation {
     /// Creates a new simulation with specified random seed.
     pub fn new(seed: u64) -> Self {
-        const MAX_QUEUED_TASKS: usize = 10_000;
         let (task_sender, ready_queue) = channel();
-        // let (task_sender, ready_queue) = sync_channel(MAX_QUEUED_TASKS);
 
         Self {
             sim_state: Rc::new(RefCell::new(SimulationState::new(seed, task_sender))),
@@ -356,7 +354,7 @@ impl Simulation {
             return true;
         }
 
-        let mut sim_state = self.sim_state.borrow_mut();
+        let sim_state = self.sim_state.borrow_mut();
         let next_timer = sim_state.peek_timer();
         let next_event = sim_state.peek_event();
 
@@ -386,7 +384,7 @@ impl Simulation {
     }
 
     fn process_timer(&mut self) {
-        let mut next_timer = self.sim_state.borrow_mut().next_timer().unwrap();
+        let next_timer = self.sim_state.borrow_mut().next_timer().unwrap();
 
         next_timer.state.as_ref().borrow_mut().set_completed();
 

@@ -1,8 +1,8 @@
-use std::{cell::RefCell, cmp::Ordering, rc::Rc, sync::Arc};
+use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
-use crate::{Event, Id};
+use crate::{Id};
 
-use super::shared_state::{EventSetter, SharedState};
+use super::shared_state::{EventSetter};
 
 pub struct Timer {
     pub id: Id,
