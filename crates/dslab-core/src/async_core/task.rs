@@ -1,4 +1,9 @@
-use std::{cell::RefCell, pin::Pin, sync::mpsc::SyncSender, sync::Arc};
+use std::{
+    cell::RefCell,
+    pin::Pin,
+    sync::mpsc::SyncSender,
+    sync::{mpsc::Sender, Arc},
+};
 
 use super::waker::CustomWake;
 use std::future::Future;
@@ -6,11 +11,11 @@ use std::future::Future;
 pub struct Task {
     pub future: RefCell<Option<Pin<Box<dyn Future<Output = ()>>>>>,
 
-    task_sender: SyncSender<Arc<Task>>,
+    task_sender: Sender<Arc<Task>>,
 }
 
 impl Task {
-    pub fn new(future: impl Future<Output = ()> + 'static, task_sender: SyncSender<Arc<Task>>) -> Self {
+    pub fn new(future: impl Future<Output = ()> + 'static, task_sender: Sender<Arc<Task>>) -> Self {
         Self {
             future: RefCell::new(Some(Box::pin(future))),
             task_sender,
