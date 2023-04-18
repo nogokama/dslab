@@ -12,7 +12,7 @@ use env_logger::Builder;
 use process::NetworkProcess;
 use sugars::{rc, refcell};
 
-use crate::process::Process;
+use crate::process::{Process, StartMessage};
 
 mod process;
 
@@ -90,7 +90,7 @@ fn main() {
         let is_pinger = !args.asymmetric || i % 2 == 1;
         if let Some(ref network) = network_opt {
             let proc = NetworkProcess::new(
-                rc!(refcell!(Vec::from_iter(peers))),
+                Vec::from_iter(peers),
                 is_pinger,
                 iterations,
                 network.clone(),
@@ -102,7 +102,7 @@ fn main() {
             net_processes.push(proc);
         } else {
             let proc = Process::new(
-                rc!(refcell!(Vec::from_iter(peers))),
+                Vec::from_iter(peers),
                 is_pinger,
                 args.rand_delay,
                 iterations,
@@ -111,16 +111,7 @@ fn main() {
             sim.add_handler(&proc_name, rc!(refcell!(proc.clone())));
             processes.push(proc);
         }
-    }
-
-    if args.use_network {
-        for proc in net_processes {
-            sim.spawn(process::start_network_process(proc));
-        }
-    } else {
-        for proc in processes {
-            sim.spawn(process::start_process(proc));
-        }
+        root.emit(StartMessage {}, proc_id, 0.);
     }
 
     let t = Instant::now();

@@ -1,9 +1,10 @@
 use std::cell::RefCell;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::rc::Rc;
-use std::sync::mpsc::{Sender};
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
+use futures::stream::FuturesUnordered;
 use futures::Future;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::distributions::{Alphanumeric, DistString};
@@ -29,6 +30,7 @@ pub struct SimulationState {
     timers: BinaryHeap<Timer>,
 
     task_sender: Sender<Arc<Task>>,
+    // futures: Rc<RefCell<FuturesUnordered<impl Future<Output = ()>>>>,
 }
 
 impl SimulationState {
@@ -230,10 +232,16 @@ impl SimulationState {
         return true;
     }
 
-    pub fn spawn(&mut self, future: impl Future<Output = ()> + 'static) {
+    pub fn spawn(&mut self, future: impl Future<Output = ()>) {
         let task = Arc::new(Task::new(future, self.task_sender.clone()));
 
-        self.task_sender.send(task).expect("too many tasks queued");
+        self.task_sender.send(task).expect("channel is closed");
+    }
+
+    pub fn spawn_static(&mut self, future: impl Future<Output = ()> + 'static) {
+        let task = Arc::new(Task::new_static(future, self.task_sender.clone()));
+
+        self.task_sender.send(task).expect("channel is closed");
     }
 
     pub fn wait_for(&mut self, timeout: f64) -> TimerFuture {

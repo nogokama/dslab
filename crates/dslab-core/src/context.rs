@@ -13,7 +13,6 @@ use crate::event::{Event, EventData, EventId};
 use crate::state::SimulationState;
 
 /// A facade for accessing the simulation state and producing events from simulation components.
-#[derive(Clone)]
 pub struct SimulationContext {
     id: Id,
     name: String,
@@ -97,7 +96,7 @@ impl SimulationContext {
     /// let f: f64 = comp_ctx.rand();
     /// assert!(f >= 0.0 && f < 1.0);
     /// ```
-    pub fn rand(&mut self) -> f64 {
+    pub fn rand(&self) -> f64 {
         self.sim_state.borrow_mut().rand()
     }
 
@@ -116,7 +115,7 @@ impl SimulationContext {
     /// let f: f64 = comp_ctx.gen_range(0.1..0.5);
     /// assert!(f >= 0.1 && f < 0.5);
     /// ```
-    pub fn gen_range<T, R>(&mut self, range: R) -> T
+    pub fn gen_range<T, R>(&self, range: R) -> T
     where
         T: SampleUniform,
         R: SampleRange<T>,
@@ -126,13 +125,13 @@ impl SimulationContext {
 
     /// Returns a random value from the specified distribution
     /// using the simulation-wide random number generator.
-    pub fn sample_from_distribution<T, Dist: Distribution<T>>(&mut self, dist: &Dist) -> T {
+    pub fn sample_from_distribution<T, Dist: Distribution<T>>(&self, dist: &Dist) -> T {
         self.sim_state.borrow_mut().sample_from_distribution(dist)
     }
 
     /// Returns a random alphanumeric string of specified length
     /// using the simulation-wide random number generator.
-    pub fn random_string(&mut self, len: usize) -> String {
+    pub fn random_string(&self, len: usize) -> String {
         self.sim_state.borrow_mut().random_string(len)
     }
 
@@ -198,7 +197,7 @@ impl SimulationContext {
     /// let mut comp2_ctx = sim.create_context("comp2");
     /// comp1_ctx.emit(SomeEvent{}, comp2_ctx.id(), -1.0); // will panic because of negative delay
     /// ```
-    pub fn emit<T>(&mut self, data: T, dest: Id, delay: f64) -> EventId
+    pub fn emit<T>(&self, data: T, dest: Id, delay: f64) -> EventId
     where
         T: EventData,
     {
@@ -248,7 +247,7 @@ impl SimulationContext {
     /// comp1_ctx.emit_ordered(SomeEvent{}, comp2_ctx.id(), 2.0);
     /// comp1_ctx.emit_ordered(SomeEvent{}, comp2_ctx.id(), 1.0); // will panic because of broken time order
     /// ```
-    pub fn emit_ordered<T>(&mut self, data: T, dest: Id, delay: f64) -> EventId
+    pub fn emit_ordered<T>(&self, data: T, dest: Id, delay: f64) -> EventId
     where
         T: EventData,
     {
@@ -335,7 +334,7 @@ impl SimulationContext {
     /// sim.step();
     /// assert_eq!(sim.time(), 0.0);
     /// ```
-    pub fn emit_now<T>(&mut self, data: T, dest: Id) -> EventId
+    pub fn emit_now<T>(&self, data: T, dest: Id) -> EventId
     where
         T: EventData,
     {
@@ -343,7 +342,7 @@ impl SimulationContext {
     }
 
     /// See [`Self::emit_ordered`].
-    pub fn emit_ordered_now<T>(&mut self, data: T, dest: Id) -> EventId
+    pub fn emit_ordered_now<T>(&self, data: T, dest: Id) -> EventId
     where
         T: EventData,
     {
@@ -399,7 +398,7 @@ impl SimulationContext {
     /// sim.step();
     /// assert_eq!(sim.time(), 6.4);
     /// ```
-    pub fn emit_self<T>(&mut self, data: T, delay: f64) -> EventId
+    pub fn emit_self<T>(&self, data: T, delay: f64) -> EventId
     where
         T: EventData,
     {
@@ -407,7 +406,7 @@ impl SimulationContext {
     }
 
     /// See [`Self::emit_ordered`].
-    pub fn emit_ordered_self<T>(&mut self, data: T, delay: f64) -> EventId
+    pub fn emit_ordered_self<T>(&self, data: T, delay: f64) -> EventId
     where
         T: EventData,
     {
@@ -466,7 +465,7 @@ impl SimulationContext {
     /// sim.step();
     /// assert_eq!(sim.time(), 0.0);
     /// ```
-    pub fn emit_self_now<T>(&mut self, data: T) -> EventId
+    pub fn emit_self_now<T>(&self, data: T) -> EventId
     where
         T: EventData,
     {
@@ -474,7 +473,7 @@ impl SimulationContext {
     }
 
     /// See [`Self::emit_ordered`].
-    pub fn emit_ordered_self_now<T>(&mut self, data: T) -> EventId
+    pub fn emit_ordered_self_now<T>(&self, data: T) -> EventId
     where
         T: EventData,
     {
@@ -529,7 +528,7 @@ impl SimulationContext {
     /// sim.step();
     /// assert_eq!(sim.time(), 2.4);
     /// ```
-    pub fn emit_as<T>(&mut self, data: T, src: Id, dest: Id, delay: f64) -> EventId
+    pub fn emit_as<T>(&self, data: T, src: Id, dest: Id, delay: f64) -> EventId
     where
         T: EventData,
     {
@@ -537,7 +536,7 @@ impl SimulationContext {
     }
 
     /// See [`Self::emit_ordered`].
-    pub fn emit_ordered_as<T>(&mut self, data: T, src: Id, dest: Id, delay: f64) -> EventId
+    pub fn emit_ordered_as<T>(&self, data: T, src: Id, dest: Id, delay: f64) -> EventId
     where
         T: EventData,
     {
@@ -569,7 +568,7 @@ impl SimulationContext {
     /// sim.step_until_no_events();
     /// assert_eq!(sim.time(), 1.0);
     /// ```
-    pub fn cancel_event(&mut self, id: EventId) {
+    pub fn cancel_event(&self, id: EventId) {
         self.sim_state.borrow_mut().cancel_event(id);
     }
 
@@ -597,7 +596,7 @@ impl SimulationContext {
     /// sim.step();
     /// assert_eq!(sim.time(), 3.0);
     /// ```
-    pub fn cancel_events<F>(&mut self, pred: F)
+    pub fn cancel_events<F>(&self, pred: F)
     where
         F: Fn(&Event) -> bool,
     {
@@ -605,7 +604,7 @@ impl SimulationContext {
     }
 
     /// Same as [`Self::cancel_events`], but ignores events added through `emit_ordered_...` methods.
-    pub fn cancel_heap_events<F>(&mut self, pred: F)
+    pub fn cancel_heap_events<F>(&self, pred: F)
     where
         F: Fn(&Event) -> bool,
     {
@@ -654,15 +653,19 @@ impl SimulationContext {
         self.names.borrow()[id as usize].clone()
     }
 
-    pub fn async_wait_for(&mut self, timeout: f64) -> TimerFuture {
+    pub fn async_wait_for(&self, timeout: f64) -> TimerFuture {
         self.sim_state.borrow_mut().wait_for(timeout)
     }
 
-    pub fn spawn(&self, future: impl Future<Output = ()> + 'static) {
+    pub fn spawn(&self, future: impl Future<Output = ()>) {
         self.sim_state.borrow_mut().spawn(future);
     }
 
-    pub fn async_wait_for_event<T>(&mut self, src: Id, dst: Id, timeout: f64) -> EventFuture<T>
+    pub fn spawn_static(&self, future: impl Future<Output = ()> + 'static) {
+        self.sim_state.borrow_mut().spawn_static(future);
+    }
+
+    pub fn async_wait_for_event<T>(&self, src: Id, dst: Id, timeout: f64) -> EventFuture<T>
     where
         T: EventData,
     {
@@ -686,7 +689,7 @@ impl SimulationContext {
         EventFuture { state }
     }
 
-    pub async fn async_handle_event<T>(&mut self, src: Id, dst: Id) -> (Event, T)
+    pub async fn async_handle_event<T>(&self, src: Id, dst: Id) -> (Event, T)
     where
         T: EventData,
     {
