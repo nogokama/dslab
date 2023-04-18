@@ -266,4 +266,11 @@ impl SimulationState {
     pub fn register_details_getter_for<T: EventData>(&mut self, details_getter: fn(&dyn EventData) -> DetailsKey) {
         self.details_getters.insert(TypeId::of::<T>(), details_getter);
     }
+
+    pub fn get_details_getter(&self, type_id: TypeId) -> Option<fn(&dyn EventData) -> DetailsKey> {
+        match self.details_getters.get(&type_id) {
+            Some(f) => Some(*f),
+            None => None,
+        }
+    }
 }
