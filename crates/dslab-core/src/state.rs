@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::rc::Rc;
-use std::sync::mpsc::{Sender, SyncSender};
+use std::sync::mpsc::{Sender};
 use std::sync::Arc;
 
 use futures::Future;

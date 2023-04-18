@@ -1,7 +1,6 @@
 use std::{
     cell::RefCell,
     pin::Pin,
-    sync::mpsc::SyncSender,
     sync::{mpsc::Sender, Arc},
 };
 

@@ -4,13 +4,13 @@ use serde::Serialize;
 
 use std::any::{Any, TypeId};
 use std::rc::Rc;
-use std::{cell::RefCell, future::Future, sync::Arc, task::Context};
+use std::{cell::RefCell, future::Future, task::Context};
 use std::{
     pin::Pin,
     task::{Poll, Waker},
 };
 
-use super::timer::Timer;
+
 
 #[derive(Serialize)]
 pub struct EmptyData {}
