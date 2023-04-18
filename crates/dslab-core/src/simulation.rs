@@ -14,9 +14,10 @@ use serde_json::json;
 use serde_type_name::type_name;
 
 use crate::async_core::executor::Executor;
-use crate::async_core::shared_state::AwaitKey;
+use crate::async_core::shared_state::{AwaitKey, DetailsKey};
 use crate::component::Id;
 use crate::context::SimulationContext;
+use crate::event::EventData;
 use crate::handler::EventHandler;
 use crate::log::log_undelivered_event;
 use crate::state::SimulationState;
@@ -394,11 +395,7 @@ impl Simulation {
     fn process_event(&mut self) -> bool {
         let event = self.sim_state.borrow_mut().next_event().unwrap();
 
-        let await_key = AwaitKey {
-            from: event.src,
-            to: event.dest,
-            msg_type: event.data.as_ref().type_id(),
-        };
+        let await_key = AwaitKey::new_by_ref(event.src, event.dest, event.data.as_ref());
 
         if self.sim_state.borrow().has_handler_on_key(&await_key) {
             self.sim_state.borrow_mut().set_event_for_await_key(&await_key, event);
@@ -435,8 +432,18 @@ impl Simulation {
         self.executor.process_task()
     }
 
-    pub fn spawn(&self, future: impl Future<Output = ()> + 'static) {
+    pub fn spawn(&self, future: impl Future<Output = ()>) {
+        self.sim_state.borrow_mut().spawn(future);
+    }
+
+    pub fn spawn_static(&self, future: impl Future<Output = ()> + 'static) {
         self.sim_state.borrow_mut().spawn_static(future);
+    }
+
+    pub fn register_details_getter_for<T: EventData>(&self, details_getter: fn(&dyn EventData) -> DetailsKey) {
+        self.sim_state
+            .borrow_mut()
+            .register_details_getter_for::<T>(details_getter);
     }
 
     /// Performs the specified number of steps through the simulation.

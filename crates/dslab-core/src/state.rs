@@ -1,3 +1,4 @@
+use std::any::TypeId;
 use std::cell::RefCell;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::rc::Rc;
@@ -11,7 +12,7 @@ use rand::distributions::{Alphanumeric, DistString};
 use rand::prelude::*;
 use rand_pcg::Pcg64;
 
-use crate::async_core::shared_state::{AwaitKey, EmptyData, EventSetter, SharedState, TimerFuture};
+use crate::async_core::shared_state::{AwaitKey, DetailsKey, EmptyData, EventSetter, SharedState, TimerFuture};
 use crate::async_core::task::Task;
 use crate::async_core::timer::Timer;
 use crate::component::Id;
@@ -31,10 +32,11 @@ pub struct SimulationState {
     event_count: u64,
 
     awaiters: HashMap<AwaitKey, Rc<RefCell<dyn EventSetter>>>,
+    details_getters: HashMap<TypeId, fn(&dyn EventData) -> DetailsKey>,
+
     timers: BinaryHeap<Timer>,
 
     task_sender: Sender<Arc<Task>>,
-    // futures: Rc<RefCell<FuturesUnordered<impl Future<Output = ()>>>>,
 }
 
 impl SimulationState {
@@ -47,6 +49,7 @@ impl SimulationState {
             canceled_events: HashSet::new(),
             event_count: 0,
             awaiters: HashMap::new(),
+            details_getters: HashMap::new(),
             timers: BinaryHeap::new(),
 
             task_sender,
@@ -280,5 +283,9 @@ impl SimulationState {
 
     pub fn add_awaiter_handler(&mut self, key: AwaitKey, state: Rc<RefCell<dyn EventSetter>>) {
         self.awaiters.insert(key, state);
+    }
+
+    pub fn register_details_getter_for<T: EventData>(&mut self, details_getter: fn(&dyn EventData) -> DetailsKey) {
+        self.details_getters.insert(TypeId::of::<T>(), details_getter);
     }
 }
