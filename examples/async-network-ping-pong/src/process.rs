@@ -7,6 +7,9 @@ use serde::Serialize;
 use sugars::{rc, refcell};
 
 #[derive(Serialize)]
+pub struct StartMessage {}
+
+#[derive(Serialize)]
 pub struct PingMessage {
     payload: f64,
 }
@@ -19,7 +22,7 @@ pub struct PongMessage {
 #[derive(Clone)]
 pub struct Process {
     peer_count: usize,
-    peers: Rc<RefCell<Vec<Id>>>,
+    peers: RefCell<Vec<Id>>,
     is_pinger: bool,
     rand_delay: bool,
     iterations: u32,
@@ -27,21 +30,36 @@ pub struct Process {
 }
 
 impl Process {
-    pub fn new(
-        peers: Rc<RefCell<Vec<Id>>>,
-        is_pinger: bool,
-        rand_delay: bool,
-        iterations: u32,
-        ctx: SimulationContext,
-    ) -> Self {
-        let peer_count = peers.borrow().len();
+    pub fn new(peers: Vec<Id>, is_pinger: bool, rand_delay: bool, iterations: u32, ctx: SimulationContext) -> Self {
+        let peer_count = peers.len();
         Self {
             peer_count,
-            peers,
+            peers: RefCell::new(peers),
             is_pinger,
             rand_delay,
             iterations,
             ctx,
+        }
+    }
+
+    fn on_start(&self) {
+        self.ctx.spawn(self.start_process());
+    }
+
+    async fn start_process(&self) {
+        if !self.is_pinger {
+            return;
+        }
+
+        for i in 0..=self.iterations {
+            let peer = self.peers.borrow()[self.ctx.gen_range(0..self.peer_count)];
+            self.send(
+                PingMessage {
+                    payload: self.ctx.time(),
+                },
+                peer,
+            );
+            self.ctx.async_handle_event::<PongMessage>(peer, self.ctx.id()).await;
         }
     }
 
@@ -54,7 +72,7 @@ impl Process {
         );
     }
 
-    fn send<T: EventData>(&mut self, event: T, to: Id) {
+    fn send<T: EventData>(&self, event: T, to: Id) {
         let delay = if self.rand_delay { self.ctx.rand() } else { 1. };
         self.ctx.emit(event, to, delay);
     }
@@ -66,27 +84,10 @@ impl EventHandler for Process {
             PingMessage { payload: _ } => {
                 self.on_ping(event.src);
             }
+            StartMessage {} => {
+                self.on_start();
+            }
         })
-    }
-}
-
-pub async fn start_process(mut process: Process) {
-    if !process.is_pinger {
-        return;
-    }
-
-    for i in 0..=process.iterations {
-        let peer = process.peers.borrow()[process.ctx.gen_range(0..process.peer_count)];
-        process.send(
-            PingMessage {
-                payload: process.ctx.time(),
-            },
-            peer,
-        );
-        process
-            .ctx
-            .async_handle_event::<PongMessage>(peer, process.ctx.id())
-            .await;
     }
 }
 
@@ -94,7 +95,7 @@ pub async fn start_process(mut process: Process) {
 pub struct NetworkProcess {
     id: Id,
     peer_count: usize,
-    peers: Rc<RefCell<Vec<Id>>>,
+    peers: RefCell<Vec<Id>>,
     is_pinger: bool,
     iterations: u32,
     net: Rc<RefCell<Network>>,
@@ -103,17 +104,17 @@ pub struct NetworkProcess {
 
 impl NetworkProcess {
     pub fn new(
-        peers: Rc<RefCell<Vec<Id>>>,
+        peers: Vec<Id>,
         is_pinger: bool,
         iterations: u32,
         net: Rc<RefCell<Network>>,
         ctx: SimulationContext,
     ) -> Self {
-        let peer_count = peers.borrow().len();
+        let peer_count = peers.len();
         Self {
             id: ctx.id(),
             peer_count,
-            peers,
+            peers: RefCell::new(peers),
             is_pinger,
             iterations,
             net,
@@ -121,7 +122,30 @@ impl NetworkProcess {
         }
     }
 
-    fn on_ping(&mut self, from: Id) {
+    fn on_start(&self) {
+        self.ctx.spawn(self.start_network_process());
+    }
+
+    pub async fn start_network_process(&self) {
+        if !self.is_pinger {
+            return;
+        }
+
+        for i in 0..=self.iterations {
+            let peer = self.peers.borrow()[self.ctx.gen_range(0..self.peer_count)];
+            self.net.borrow_mut().send_event(
+                PingMessage {
+                    payload: self.ctx.time(),
+                },
+                self.id,
+                peer,
+            );
+
+            self.ctx.async_handle_event::<PongMessage>(peer, self.id).await;
+        }
+    }
+
+    fn on_ping(&self, from: Id) {
         self.net.borrow_mut().send_event(
             PongMessage {
                 payload: self.ctx.time(),
@@ -138,25 +162,9 @@ impl EventHandler for NetworkProcess {
             PingMessage { payload: _ } => {
                 self.on_ping(event.src);
             }
+            StartMessage {} => {
+                self.on_start();
+            }
         })
-    }
-}
-
-pub async fn start_network_process(mut process: NetworkProcess) {
-    if !process.is_pinger {
-        return;
-    }
-
-    for i in 0..=process.iterations {
-        let peer = process.peers.borrow()[process.ctx.gen_range(0..process.peer_count)];
-        process.net.borrow_mut().send_event(
-            PingMessage {
-                payload: process.ctx.time(),
-            },
-            process.id,
-            peer,
-        );
-
-        process.ctx.async_handle_event::<PongMessage>(peer, process.id).await;
     }
 }

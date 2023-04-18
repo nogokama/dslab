@@ -13,7 +13,6 @@ use crate::event::{Event, EventData, EventId};
 use crate::state::SimulationState;
 
 /// A facade for accessing the simulation state and producing events from simulation components.
-#[derive(Clone)]
 pub struct SimulationContext {
     id: Id,
     name: String,
@@ -654,15 +653,19 @@ impl SimulationContext {
         self.names.borrow()[id as usize].clone()
     }
 
-    pub fn async_wait_for(&mut self, timeout: f64) -> TimerFuture {
+    pub fn async_wait_for(&self, timeout: f64) -> TimerFuture {
         self.sim_state.borrow_mut().wait_for(timeout)
     }
 
-    pub fn spawn(&self, future: impl Future<Output = ()> + 'static) {
+    pub fn spawn(&self, future: impl Future<Output = ()>) {
         self.sim_state.borrow_mut().spawn(future);
     }
 
-    pub fn async_wait_for_event<T>(&mut self, src: Id, dst: Id, timeout: f64) -> EventFuture<T>
+    pub fn spawn_static(&self, future: impl Future<Output = ()> + 'static) {
+        self.sim_state.borrow_mut().spawn_static(future);
+    }
+
+    pub fn async_wait_for_event<T>(&self, src: Id, dst: Id, timeout: f64) -> EventFuture<T>
     where
         T: EventData,
     {
@@ -686,7 +689,7 @@ impl SimulationContext {
         EventFuture { state }
     }
 
-    pub async fn async_handle_event<T>(&mut self, src: Id, dst: Id) -> (Event, T)
+    pub async fn async_handle_event<T>(&self, src: Id, dst: Id) -> (Event, T)
     where
         T: EventData,
     {

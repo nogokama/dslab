@@ -436,7 +436,7 @@ impl Simulation {
     }
 
     pub fn spawn(&self, future: impl Future<Output = ()> + 'static) {
-        self.sim_state.borrow_mut().spawn(future);
+        self.sim_state.borrow_mut().spawn_static(future);
     }
 
     /// Performs the specified number of steps through the simulation.
