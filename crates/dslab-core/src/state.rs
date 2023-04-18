@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::rc::Rc;
-use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::{Sender, SyncSender};
 use std::sync::Arc;
 
 use futures::Future;
@@ -32,11 +32,11 @@ pub struct SimulationState {
     awaiters: HashMap<AwaitKey, Rc<RefCell<dyn EventSetter>>>,
     timers: BinaryHeap<Timer>,
 
-    task_sender: SyncSender<Arc<Task>>,
+    task_sender: Sender<Arc<Task>>,
 }
 
 impl SimulationState {
-    pub fn new(seed: u64, task_sender: SyncSender<Arc<Task>>) -> Self {
+    pub fn new(seed: u64, task_sender: Sender<Arc<Task>>) -> Self {
         Self {
             clock: 0.0,
             rand: Pcg64::seed_from_u64(seed),
