@@ -395,7 +395,7 @@ impl Simulation {
     fn process_event(&mut self) -> bool {
         let event = self.sim_state.borrow_mut().next_event().unwrap();
 
-        let await_key = AwaitKey::new_by_ref(event.src, event.dest, event.data.as_ref());
+        let await_key = self.get_await_key(&event);
 
         if self.sim_state.borrow().has_handler_on_key(&await_key) {
             self.sim_state.borrow_mut().set_event_for_await_key(&await_key, event);
@@ -426,6 +426,13 @@ impl Simulation {
         }
 
         return true;
+    }
+
+    fn get_await_key(&self, event: &Event) -> AwaitKey {
+        match self.sim_state.borrow().get_details_getter(event.data.type_id()) {
+            Some(getter) => AwaitKey::new_with_details(event.src, event.dest, event.data.as_ref(), getter),
+            None => AwaitKey::new_by_ref(event.src, event.dest, event.data.as_ref()),
+        }
     }
 
     fn process_task(&self) -> bool {
