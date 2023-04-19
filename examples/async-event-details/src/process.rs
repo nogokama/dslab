@@ -1,13 +1,21 @@
 use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
-use dslab_compute::multicore::{CompFinished, CompStarted, Compute};
+use dslab_compute::multicore::{CompFailed, CompFinished, CompStarted, Compute};
+use dslab_core::async_core::shared_state::DetailsKey;
 use dslab_core::{async_core::task::Task, cast, event::EventId, log_debug, Event, EventHandler, Id, SimulationContext};
 use log::debug;
 
+use futures::future::{self, FutureExt};
+use futures::select;
+
+use serde::Serialize;
+use serde_json::json;
+
 use sugars::{rc, refcell};
 
-use crate::events::{Start, TakeTask, TaskRequest};
+use crate::events::{Start, TakeTask, TaskCompleted, TaskRequest};
 
+#[derive(Serialize)]
 struct TaskInfo {
     flops: u64,
     memory: u64,
@@ -38,7 +46,7 @@ impl Worker {
     }
 
     fn on_start(&self) {
-        debug!("Worker started");
+        log_debug!(self.ctx, "Worker started");
         self.ctx.spawn(self.work_loop());
     }
 
@@ -46,6 +54,9 @@ impl Worker {
         if self.tasks_queue.borrow().is_empty() {
             self.ctx.emit_self_now(TakeTask {});
         }
+
+        log_debug!(self.ctx, format!("Received task: {}", json!(&task_info)));
+
         self.tasks_queue.borrow_mut().push_back(task_info);
     }
 
@@ -56,33 +67,48 @@ impl Worker {
                 self.ctx.async_handle_self::<TakeTask>().await;
             }
 
-            self.process_task().await;
+            let task_info = self.tasks_queue.borrow_mut().pop_front().unwrap();
+
+            while !self.try_start_process_task(&task_info).await {
+                self.ctx.async_handle_self::<TaskCompleted>().await;
+            }
 
             tasks_completed += 1;
 
-            log_debug!(
-                self.ctx,
-                format!("Worker::work_loop : task {} completed", tasks_completed)
-            );
+            log_debug!(self.ctx, format!("work_loop : {} tasks completed", tasks_completed));
         }
     }
 
-    async fn try_process_task(&self, task_info: TaskInfo) -> bool {
+    async fn try_start_process_task(&self, task_info: &TaskInfo) -> bool {
         let key = self.run_task(task_info);
 
-        return true;
+        select! {
+            _ = self.ctx.async_detailed_handle_event::<CompStarted>(self.compute_id, key).fuse() => {
+
+                log_debug!(self.ctx, format!("try_process_task : task with key {} started", key));
+
+                self.ctx.spawn(self.process_task(key));
+
+                true
+            },
+            (_, failed) = self.ctx.async_detailed_handle_event::<CompFailed>(self.compute_id, key).fuse() => {
+                log_debug!(self.ctx, format!("try_process_task : task with key {} failed: {}", key, json!(failed)));
+                false
+            }
+        }
     }
 
-    async fn process_task(&self) {
-        let task_info = self.tasks_queue.borrow_mut().pop_front().unwrap();
-        self.run_task(task_info);
+    async fn process_task(&self, key: DetailsKey) {
+        self.ctx
+            .async_detailed_handle_event::<CompFinished>(self.compute_id, key)
+            .await;
 
-        self.ctx.async_handle_event::<CompStarted>(self.compute_id).await;
+        log_debug!(self.ctx, format!("process_task : task with key {} completed", key));
 
-        self.ctx.async_handle_event::<CompFinished>(self.compute_id).await;
+        self.ctx.emit_self_now(TaskCompleted {});
     }
 
-    fn run_task(&self, task_info: TaskInfo) -> EventId {
+    fn run_task(&self, task_info: &TaskInfo) -> DetailsKey {
         self.compute.borrow_mut().run(
             task_info.flops,
             task_info.memory,
@@ -90,7 +116,7 @@ impl Worker {
             task_info.cores,
             dslab_compute::multicore::CoresDependency::Linear,
             self.id(),
-        )
+        ) as DetailsKey
     }
 }
 
@@ -104,6 +130,7 @@ impl EventHandler for Worker {
                 self.on_start();
             }
             TakeTask {} => {}
+            TaskCompleted {} => {}
         })
     }
 }

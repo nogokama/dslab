@@ -16,6 +16,9 @@ pub struct TaskRequest {
 #[derive(Serialize)]
 pub struct TakeTask {}
 
+#[derive(Serialize)]
+pub struct TaskCompleted {}
+
 pub fn get_compute_start_id(data: &dyn EventData) -> DetailsKey {
     let event = data.downcast_ref::<CompStarted>().unwrap();
     return event.id;
