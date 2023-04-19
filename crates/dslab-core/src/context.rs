@@ -656,61 +656,63 @@ impl SimulationContext {
         self.names.borrow()[id as usize].clone()
     }
 
-    pub fn async_wait_for(&self, timeout: f64) -> TimerFuture {
-        self.sim_state.borrow_mut().wait_for(timeout)
-    }
-
-    pub fn spawn(&self, future: impl Future<Output = ()>) {
-        self.sim_state.borrow_mut().spawn(future);
-    }
-
-    pub fn spawn_static(&self, future: impl Future<Output = ()> + 'static) {
-        self.sim_state.borrow_mut().spawn_static(future);
-    }
-
-    pub fn async_wait_for_event_to<T>(&self, src: Id, dst: Id, timeout: f64) -> EventFuture<T>
-    where
-        T: EventData,
-    {
-        if self.sim_state.borrow().get_details_getter(TypeId::of::<T>()).is_some() {
-            panic!("try to async handle event that has detailed key handling, use async details handlers")
+    async_core! {
+        pub fn async_wait_for(&self, timeout: f64) -> TimerFuture {
+            self.sim_state.borrow_mut().wait_for(timeout)
         }
 
-        let await_key = AwaitKey::new::<T>(src, dst);
-
-        self.create_event_future(await_key, timeout)
-    }
-
-    pub fn async_wait_for_event<T>(&self, src: Id, timeout: f64) -> EventFuture<T>
-    where
-        T: EventData,
-    {
-        self.async_wait_for_event_to(src, self.id, timeout)
-    }
-
-    pub async fn async_handle_event_to<T>(&self, src: Id, dst: Id) -> (Event, T)
-    where
-        T: EventData,
-    {
-        let result = self.async_wait_for_event_to::<T>(src, dst, -1.).await;
-        match result {
-            AwaitResult::Ok(t) => t,
-            AwaitResult::Timeout(_) => panic!("unexpected timeout"),
+        pub fn spawn(&self, future: impl Future<Output = ()>) {
+            self.sim_state.borrow_mut().spawn(future);
         }
-    }
 
-    pub async fn async_handle_event<T>(&self, src: Id) -> (Event, T)
-    where
-        T: EventData,
-    {
-        self.async_handle_event_to::<T>(src, self.id).await
-    }
+        pub fn spawn_static(&self, future: impl Future<Output = ()> + 'static) {
+            self.sim_state.borrow_mut().spawn_static(future);
+        }
 
-    pub async fn async_handle_self<T>(&self) -> (Event, T)
-    where
-        T: EventData,
-    {
-        self.async_handle_event_to::<T>(self.id, self.id).await
+        pub fn async_wait_for_event_to<T>(&self, src: Id, dst: Id, timeout: f64) -> EventFuture<T>
+        where
+            T: EventData,
+        {
+            if self.sim_state.borrow().get_details_getter(TypeId::of::<T>()).is_some() {
+                panic!("try to async handle event that has detailed key handling, use async details handlers")
+            }
+
+            let await_key = AwaitKey::new::<T>(src, dst);
+
+            self.create_event_future(await_key, timeout)
+        }
+
+        pub fn async_wait_for_event<T>(&self, src: Id, timeout: f64) -> EventFuture<T>
+        where
+            T: EventData,
+        {
+            self.async_wait_for_event_to(src, self.id, timeout)
+        }
+
+        pub async fn async_handle_event_to<T>(&self, src: Id, dst: Id) -> (Event, T)
+        where
+            T: EventData,
+        {
+            let result = self.async_wait_for_event_to::<T>(src, dst, -1.).await;
+            match result {
+                AwaitResult::Ok(t) => t,
+                AwaitResult::Timeout(_) => panic!("unexpected timeout"),
+            }
+        }
+
+        pub async fn async_handle_event<T>(&self, src: Id) -> (Event, T)
+        where
+            T: EventData,
+        {
+            self.async_handle_event_to::<T>(src, self.id).await
+        }
+
+        pub async fn async_handle_self<T>(&self) -> (Event, T)
+        where
+            T: EventData,
+        {
+            self.async_handle_event_to::<T>(self.id, self.id).await
+        }
     }
 
     async_details_core! {
@@ -736,18 +738,14 @@ impl SimulationContext {
 
             self.create_event_future(await_key, timeout)
         }
-    }
 
-    async_details_core! {
         pub fn async_detailed_wait_for_event<T>(&self, src: Id, details: DetailsKey, timeout: f64) -> EventFuture<T>
         where
             T: EventData,
         {
             self.async_detailed_wait_for_event_to(src, self.id, details, timeout)
         }
-    }
 
-    async_details_core! {
         pub async fn async_detailed_handle_event_to<T>(&self, src: Id, dst: Id, details: DetailsKey) -> (Event, T)
         where
             T: EventData,
@@ -758,18 +756,14 @@ impl SimulationContext {
                 AwaitResult::Timeout(_) => panic!("unexpected timeout"),
             }
         }
-    }
 
-    async_details_core! {
         pub async fn async_detailed_handle_event<T>(&self, src: Id, details: DetailsKey) -> (Event, T)
         where
             T: EventData,
         {
             self.async_detailed_handle_event_to::<T>(src, self.id, details).await
         }
-    }
 
-    async_details_core! {
         pub async fn async_detailed_handle_self<T>(&self, details: DetailsKey) -> (Event, T)
         where
             T: EventData,
@@ -779,21 +773,23 @@ impl SimulationContext {
         }
     }
 
-    fn create_event_future<T>(&self, await_key: AwaitKey, timeout: f64) -> EventFuture<T>
-    where
-        T: EventData,
-    {
-        let state = Rc::new(RefCell::new(SharedState::<T>::default()));
-        state.borrow_mut().shared_content = AwaitResult::timeout_with(await_key.from, await_key.to);
+    async_core! {
+        fn create_event_future<T>(&self, await_key: AwaitKey, timeout: f64) -> EventFuture<T>
+        where
+            T: EventData,
+        {
+            let state = Rc::new(RefCell::new(SharedState::<T>::default()));
+            state.borrow_mut().shared_content = AwaitResult::timeout_with(await_key.from, await_key.to);
 
-        if timeout >= 0. {
-            self.sim_state.borrow_mut().add_timer_on_state(timeout, state.clone());
+            if timeout >= 0. {
+                self.sim_state.borrow_mut().add_timer_on_state(timeout, state.clone());
+            }
+
+            self.sim_state
+                .borrow_mut()
+                .add_awaiter_handler(await_key, state.clone());
+
+            EventFuture { state }
         }
-
-        self.sim_state
-            .borrow_mut()
-            .add_awaiter_handler(await_key, state.clone());
-
-        EventFuture { state }
     }
 }
