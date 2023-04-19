@@ -398,6 +398,19 @@ impl Simulation {
         let await_key = self.get_await_key(&event);
 
         if self.sim_state.borrow().has_handler_on_key(&await_key) {
+            if log_enabled!(Trace) {
+                let src_name = self.lookup_name(event.src);
+                let dest_name = self.lookup_name(event.dest);
+                trace!(
+                    target: &dest_name,
+                    "[{:.3} {} {}] {}",
+                    event.time,
+                    crate::log::get_colored("EVENT", colored::Color::BrightBlack),
+                    dest_name,
+                    json!({"type": type_name(&event.data).unwrap(), "data": event.data, "src": src_name})
+                );
+            }
+
             self.sim_state.borrow_mut().set_event_for_await_key(&await_key, event);
 
             self.process_task();
@@ -430,7 +443,12 @@ impl Simulation {
 
     fn get_await_key(&self, event: &Event) -> AwaitKey {
         match self.sim_state.borrow().get_details_getter(event.data.type_id()) {
-            Some(getter) => AwaitKey::new_with_details(event.src, event.dest, event.data.as_ref(), getter),
+            Some(getter) => AwaitKey::new_with_details_by_ref(
+                event.src,
+                event.dest,
+                event.data.as_ref(),
+                getter(event.data.as_ref()),
+            ),
             None => AwaitKey::new_by_ref(event.src, event.dest, event.data.as_ref()),
         }
     }

@@ -166,17 +166,21 @@ impl AwaitKey {
         }
     }
 
-    pub fn new_with_details(
-        from: Id,
-        to: Id,
-        data: &dyn EventData,
-        details_getter: fn(&dyn EventData) -> DetailsKey,
-    ) -> Self {
+    pub fn new_with_details<T: EventData>(from: Id, to: Id, details: DetailsKey) -> Self {
+        Self {
+            from,
+            to,
+            msg_type: TypeId::of::<T>(),
+            details,
+        }
+    }
+
+    pub fn new_with_details_by_ref(from: Id, to: Id, data: &dyn EventData, details: DetailsKey) -> Self {
         Self {
             from,
             to,
             msg_type: data.type_id(),
-            details: details_getter(data),
+            details,
         }
     }
 }
