@@ -21,7 +21,7 @@ use crate::event::EventData;
 use crate::handler::EventHandler;
 use crate::log::log_undelivered_event;
 use crate::state::SimulationState;
-use crate::Event;
+use crate::{async_core, async_details_core, async_disabled, async_only_core, Event};
 
 /// Represents a simulation, provides methods for its configuration and execution.
 pub struct Simulation {
@@ -349,73 +349,98 @@ impl Simulation {
     /// status = sim.step();
     /// assert!(!status);
     /// ```
-
     pub fn step(&mut self) -> bool {
-        if self.process_task() {
-            return true;
-        }
+        self.step_inner()
+    }
 
-        let sim_state = self.sim_state.borrow_mut();
-        let next_timer = sim_state.peek_timer();
-        let next_event = sim_state.peek_event();
+    async_core! {
+        fn step_inner(&mut self) -> bool {
+            if self.process_task() {
+                return true;
+            }
 
-        match (next_timer, next_event) {
-            (None, None) => false,
-            (_, None) => {
-                drop(sim_state);
-                self.process_timer();
-                true
-            }
-            (None, _) => {
-                drop(sim_state);
-                self.process_event();
-                true
-            }
-            _ => {
-                if next_timer.unwrap().time <= next_event.unwrap().time {
+            let sim_state = self.sim_state.borrow_mut();
+            let next_timer = sim_state.peek_timer();
+            let next_event = sim_state.peek_event();
+
+            match (next_timer, next_event) {
+                (None, None) => false,
+                (_, None) => {
                     drop(sim_state);
                     self.process_timer();
-                } else {
+                    true
+                }
+                (None, _) => {
                     drop(sim_state);
                     self.process_event();
+                    true
                 }
-                true
+                _ => {
+                    if next_timer.unwrap().time <= next_event.unwrap().time {
+                        drop(sim_state);
+                        self.process_timer();
+                    } else {
+                        drop(sim_state);
+                        self.process_event();
+                    }
+                    true
+                }
             }
         }
     }
 
-    fn process_timer(&mut self) {
-        let next_timer = self.sim_state.borrow_mut().next_timer().unwrap();
-
-        next_timer.state.as_ref().borrow_mut().set_completed();
-
-        self.process_task();
+    async_disabled! {
+        fn step_inner(&mut self) -> bool {
+            self.process_event()
+        }
     }
 
-    fn process_event(&mut self) -> bool {
-        let event = self.sim_state.borrow_mut().next_event().unwrap();
+    async_disabled! {
+        fn process_event(&mut self) -> bool {
+            let event_opt = self.sim_state.borrow_mut().next_event();
+            match event_opt {
+                Some(event) => {
+                    self.deliver_event_via_handler(event);
+                    true
+                }
+                None => false,
+            }
+        }
+    }
 
-        let await_key = self.get_await_key(&event);
+    async_core! {
+        fn process_event(&mut self) -> bool {
+            let event = self.sim_state.borrow_mut().next_event().unwrap();
 
-        if self.sim_state.borrow().has_handler_on_key(&await_key) {
-            if log_enabled!(Trace) {
-                let src_name = self.lookup_name(event.src);
-                let dest_name = self.lookup_name(event.dest);
-                trace!(
-                    target: &dest_name,
-                    "[{:.3} {} {}] {}",
-                    event.time,
-                    crate::log::get_colored("EVENT", colored::Color::BrightBlack),
-                    dest_name,
-                    json!({"type": type_name(&event.data).unwrap(), "data": event.data, "src": src_name})
-                );
+            let await_key = self.get_await_key(&event);
+
+            if self.sim_state.borrow().has_handler_on_key(&await_key) {
+                if log_enabled!(Trace) {
+                    let src_name = self.lookup_name(event.src);
+                    let dest_name = self.lookup_name(event.dest);
+                    trace!(
+                        target: &dest_name,
+                        "[{:.3} {} {}] {}",
+                        event.time,
+                        crate::log::get_colored("EVENT", colored::Color::BrightBlack),
+                        dest_name,
+                        json!({"type": type_name(&event.data).unwrap(), "data": event.data, "src": src_name})
+                    );
+                }
+
+                self.sim_state.borrow_mut().set_event_for_await_key(&await_key, event);
+
+                self.process_task();
+                return true;
             }
 
-            self.sim_state.borrow_mut().set_event_for_await_key(&await_key, event);
+            self.deliver_event_via_handler(event);
 
-            self.process_task();
             return true;
         }
+    }
+
+    fn deliver_event_via_handler(&self, event: Event) {
         if let Some(handler_opt) = self.handlers.get(event.dest as usize) {
             if log_enabled!(Trace) {
                 let src_name = self.lookup_name(event.src);
@@ -437,19 +462,33 @@ impl Simulation {
         } else {
             log_undelivered_event(event);
         }
-
-        return true;
     }
 
-    fn get_await_key(&self, event: &Event) -> AwaitKey {
-        match self.sim_state.borrow().get_details_getter(event.data.type_id()) {
-            Some(getter) => AwaitKey::new_with_details_by_ref(
-                event.src,
-                event.dest,
-                event.data.as_ref(),
-                getter(event.data.as_ref()),
-            ),
-            None => AwaitKey::new_by_ref(event.src, event.dest, event.data.as_ref()),
+    fn process_timer(&mut self) {
+        let next_timer = self.sim_state.borrow_mut().next_timer().unwrap();
+
+        next_timer.state.as_ref().borrow_mut().set_completed();
+
+        self.process_task();
+    }
+
+    async_details_core! {
+        fn get_await_key(&self, event: &Event) -> AwaitKey {
+            match self.sim_state.borrow().get_details_getter(event.data.type_id()) {
+                Some(getter) => AwaitKey::new_with_details_by_ref(
+                    event.src,
+                    event.dest,
+                    event.data.as_ref(),
+                    getter(event.data.as_ref()),
+                ),
+                None => AwaitKey::new_by_ref(event.src, event.dest, event.data.as_ref()),
+            }
+        }
+    }
+
+    async_only_core! {
+        fn get_await_key(&self, event: &Event) -> AwaitKey {
+             AwaitKey::new_by_ref(event.src, event.dest, event.data.as_ref())
         }
     }
 
