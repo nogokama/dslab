@@ -9,11 +9,11 @@ use futures::Future;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::prelude::Distribution;
 
-use crate::async_core;
 use crate::async_core::shared_state::{AwaitKey, AwaitResult, DetailsKey, EventFuture, SharedState, TimerFuture};
 use crate::component::Id;
 use crate::event::{Event, EventData, EventId};
 use crate::state::SimulationState;
+use crate::{async_core, async_details_core};
 
 /// A facade for accessing the simulation state and producing events from simulation components.
 pub struct SimulationContext {
@@ -713,59 +713,70 @@ impl SimulationContext {
         self.async_handle_event_to::<T>(self.id, self.id).await
     }
 
-    pub fn async_detailed_wait_for_event_to<T>(
-        &self,
-        src: Id,
-        dst: Id,
-        details: DetailsKey,
-        timeout: f64,
-    ) -> EventFuture<T>
-    where
-        T: EventData,
-    {
-        if self.sim_state.borrow().get_details_getter(TypeId::of::<T>()).is_none() {
-            panic!(
-                "simulation does not have details getter for type {}, register it before useing async_detailed getters",
-                type_name::<T>()
-            );
-        }
+    async_details_core! {
+        /// Example of documentation
+        pub fn async_detailed_wait_for_event_to<T>(
+            &self,
+            src: Id,
+            dst: Id,
+            details: DetailsKey,
+            timeout: f64,
+        ) -> EventFuture<T>
+        where
+            T: EventData,
+        {
+            if self.sim_state.borrow().get_details_getter(TypeId::of::<T>()).is_none() {
+                panic!(
+                    "simulation does not have details getter for type {}, register it before useing async_detailed getters",
+                    type_name::<T>()
+                );
+            }
 
-        let await_key = AwaitKey::new_with_details::<T>(src, dst, details);
+            let await_key = AwaitKey::new_with_details::<T>(src, dst, details);
 
-        self.create_event_future(await_key, timeout)
-    }
-
-    pub fn async_detailed_wait_for_event<T>(&self, src: Id, details: DetailsKey, timeout: f64) -> EventFuture<T>
-    where
-        T: EventData,
-    {
-        self.async_detailed_wait_for_event_to(src, self.id, details, timeout)
-    }
-
-    pub async fn async_detailed_handle_event_to<T>(&self, src: Id, dst: Id, details: DetailsKey) -> (Event, T)
-    where
-        T: EventData,
-    {
-        let result = self.async_detailed_wait_for_event_to::<T>(src, dst, details, -1.).await;
-        match result {
-            AwaitResult::Ok(t) => t,
-            AwaitResult::Timeout(_) => panic!("unexpected timeout"),
+            self.create_event_future(await_key, timeout)
         }
     }
 
-    pub async fn async_detailed_handle_event<T>(&self, src: Id, details: DetailsKey) -> (Event, T)
-    where
-        T: EventData,
-    {
-        self.async_detailed_handle_event_to::<T>(src, self.id, details).await
+    async_details_core! {
+        pub fn async_detailed_wait_for_event<T>(&self, src: Id, details: DetailsKey, timeout: f64) -> EventFuture<T>
+        where
+            T: EventData,
+        {
+            self.async_detailed_wait_for_event_to(src, self.id, details, timeout)
+        }
     }
 
-    pub async fn async_detailed_handle_self<T>(&self, details: DetailsKey) -> (Event, T)
-    where
-        T: EventData,
-    {
-        self.async_detailed_handle_event_to::<T>(self.id, self.id, details)
-            .await
+    async_details_core! {
+        pub async fn async_detailed_handle_event_to<T>(&self, src: Id, dst: Id, details: DetailsKey) -> (Event, T)
+        where
+            T: EventData,
+        {
+            let result = self.async_detailed_wait_for_event_to::<T>(src, dst, details, -1.).await;
+            match result {
+                AwaitResult::Ok(t) => t,
+                AwaitResult::Timeout(_) => panic!("unexpected timeout"),
+            }
+        }
+    }
+
+    async_details_core! {
+        pub async fn async_detailed_handle_event<T>(&self, src: Id, details: DetailsKey) -> (Event, T)
+        where
+            T: EventData,
+        {
+            self.async_detailed_handle_event_to::<T>(src, self.id, details).await
+        }
+    }
+
+    async_details_core! {
+        pub async fn async_detailed_handle_self<T>(&self, details: DetailsKey) -> (Event, T)
+        where
+            T: EventData,
+        {
+            self.async_detailed_handle_event_to::<T>(self.id, self.id, details)
+                .await
+        }
     }
 
     fn create_event_future<T>(&self, await_key: AwaitKey, timeout: f64) -> EventFuture<T>
