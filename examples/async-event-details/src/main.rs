@@ -27,16 +27,16 @@ struct Args {
 
 struct Client {
     ctx: SimulationContext,
-    task_delay: f64,
+    max_task_delay: f64,
     task_count: u32,
     worker_id: Id,
 }
 
 impl Client {
-    fn new(ctx: SimulationContext, task_delay: f64, task_count: u32, worker_id: Id) -> Self {
+    fn new(ctx: SimulationContext, max_task_delay: f64, task_count: u32, worker_id: Id) -> Self {
         Self {
             ctx,
-            task_delay,
+            max_task_delay,
             task_count,
             worker_id,
         }
@@ -54,7 +54,9 @@ impl Client {
 
             self.ctx.emit_now(TaskRequest { flops, cores, memory }, self.worker_id);
 
-            self.ctx.async_wait_for(self.task_delay).await;
+            self.ctx
+                .async_wait_for(self.ctx.gen_range(1.0..=self.max_task_delay))
+                .await;
         }
     }
 }
@@ -110,7 +112,7 @@ fn main() {
     admin.emit_now(Start {}, worker.borrow().id());
 
     // client context for submitting tasks
-    let mut client = Client::new(sim.create_context("client"), 2., task_count, worker.borrow().id());
+    let mut client = Client::new(sim.create_context("client"), 100., task_count, worker.borrow().id());
     client.run();
 
     let t = Instant::now();
