@@ -353,6 +353,19 @@ impl Simulation {
         self.step_inner()
     }
 
+    async_disabled! {
+        fn step_inner(&mut self) -> bool {
+            let event_opt = self.sim_state.borrow_mut().next_event();
+            match event_opt {
+                Some(event) => {
+                    self.deliver_event_via_handler(event);
+                    true
+                }
+                None => false,
+            }
+        }
+    }
+
     async_core! {
         fn step_inner(&mut self) -> bool {
             if self.process_task() {
@@ -387,28 +400,7 @@ impl Simulation {
                 }
             }
         }
-    }
 
-    async_disabled! {
-        fn step_inner(&mut self) -> bool {
-            self.process_event()
-        }
-    }
-
-    async_disabled! {
-        fn process_event(&mut self) -> bool {
-            let event_opt = self.sim_state.borrow_mut().next_event();
-            match event_opt {
-                Some(event) => {
-                    self.deliver_event_via_handler(event);
-                    true
-                }
-                None => false,
-            }
-        }
-    }
-
-    async_core! {
         fn process_event(&mut self) -> bool {
             let event = self.sim_state.borrow_mut().next_event().unwrap();
 
@@ -438,6 +430,52 @@ impl Simulation {
 
             return true;
         }
+
+        fn process_task(&self) -> bool {
+            self.executor.process_task()
+        }
+
+        fn process_timer(&mut self) {
+            let next_timer = self.sim_state.borrow_mut().next_timer().unwrap();
+
+            next_timer.state.as_ref().borrow_mut().set_completed();
+
+            self.process_task();
+        }
+
+        pub fn spawn(&self, future: impl Future<Output = ()>) {
+            self.sim_state.borrow_mut().spawn(future);
+        }
+
+        pub fn spawn_static(&self, future: impl Future<Output = ()> + 'static) {
+            self.sim_state.borrow_mut().spawn_static(future);
+        }
+    }
+
+    async_details_core! {
+        fn get_await_key(&self, event: &Event) -> AwaitKey {
+            match self.sim_state.borrow().get_details_getter(event.data.type_id()) {
+                Some(getter) => AwaitKey::new_with_details_by_ref(
+                    event.src,
+                    event.dest,
+                    event.data.as_ref(),
+                    getter(event.data.as_ref()),
+                ),
+                None => AwaitKey::new_by_ref(event.src, event.dest, event.data.as_ref()),
+            }
+        }
+
+        pub fn register_details_getter_for<T: EventData>(&self, details_getter: fn(&dyn EventData) -> DetailsKey) {
+            self.sim_state
+                .borrow_mut()
+                .register_details_getter_for::<T>(details_getter);
+        }
+    }
+
+    async_only_core! {
+        fn get_await_key(&self, event: &Event) -> AwaitKey {
+             AwaitKey::new_by_ref(event.src, event.dest, event.data.as_ref())
+        }
     }
 
     fn deliver_event_via_handler(&self, event: Event) {
@@ -462,52 +500,6 @@ impl Simulation {
         } else {
             log_undelivered_event(event);
         }
-    }
-
-    fn process_timer(&mut self) {
-        let next_timer = self.sim_state.borrow_mut().next_timer().unwrap();
-
-        next_timer.state.as_ref().borrow_mut().set_completed();
-
-        self.process_task();
-    }
-
-    async_details_core! {
-        fn get_await_key(&self, event: &Event) -> AwaitKey {
-            match self.sim_state.borrow().get_details_getter(event.data.type_id()) {
-                Some(getter) => AwaitKey::new_with_details_by_ref(
-                    event.src,
-                    event.dest,
-                    event.data.as_ref(),
-                    getter(event.data.as_ref()),
-                ),
-                None => AwaitKey::new_by_ref(event.src, event.dest, event.data.as_ref()),
-            }
-        }
-    }
-
-    async_only_core! {
-        fn get_await_key(&self, event: &Event) -> AwaitKey {
-             AwaitKey::new_by_ref(event.src, event.dest, event.data.as_ref())
-        }
-    }
-
-    fn process_task(&self) -> bool {
-        self.executor.process_task()
-    }
-
-    pub fn spawn(&self, future: impl Future<Output = ()>) {
-        self.sim_state.borrow_mut().spawn(future);
-    }
-
-    pub fn spawn_static(&self, future: impl Future<Output = ()> + 'static) {
-        self.sim_state.borrow_mut().spawn_static(future);
-    }
-
-    pub fn register_details_getter_for<T: EventData>(&self, details_getter: fn(&dyn EventData) -> DetailsKey) {
-        self.sim_state
-            .borrow_mut()
-            .register_details_getter_for::<T>(details_getter);
     }
 
     /// Performs the specified number of steps through the simulation.

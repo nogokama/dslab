@@ -66,9 +66,14 @@ impl<T: EventData> Default for SharedState<T> {
 pub trait EventSetter: Any {
     fn set_ok_completed_with_event(&mut self, e: Event);
     fn set_completed(&mut self);
+    fn is_completed(&self) -> bool;
 }
 
 impl<T: EventData> EventSetter for SharedState<T> {
+    fn is_completed(&self) -> bool {
+        self.completed
+    }
+
     fn set_ok_completed_with_event(&mut self, mut e: Event) {
         if self.completed {
             return;
