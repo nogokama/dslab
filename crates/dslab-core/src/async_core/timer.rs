@@ -1,18 +1,20 @@
 use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
-use crate::{Id};
+use crate::Id;
 
-use super::shared_state::{EventSetter};
+use super::shared_state::EventSetter;
+
+type TimerId = u64;
 
 pub struct Timer {
-    pub id: Id,
+    pub id: TimerId,
     pub time: f64,
     pub state: Rc<RefCell<dyn EventSetter>>,
 }
 
 impl Timer {
     pub fn new(time: f64, state: Rc<RefCell<dyn EventSetter>>) -> Self {
-        static mut TIMER_COUNTER: Id = 0;
+        static mut TIMER_COUNTER: TimerId = 0;
         unsafe {
             TIMER_COUNTER += 1;
             Self {
