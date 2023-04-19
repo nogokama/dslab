@@ -57,7 +57,7 @@ impl Process {
                 },
                 peer,
             );
-            self.ctx.async_handle_event_to::<PongMessage>(peer, self.ctx.id()).await;
+            self.ctx.async_handle_event::<PongMessage>(peer).await;
         }
     }
 
@@ -138,7 +138,7 @@ impl NetworkProcess {
                 peer,
             );
 
-            self.ctx.async_handle_event_to::<PongMessage>(peer, self.id).await;
+            self.ctx.async_handle_event::<PongMessage>(peer).await;
         }
     }
 
