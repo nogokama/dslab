@@ -5,7 +5,6 @@ use dslab_network::network::Network;
 
 use serde::Serialize;
 
-
 #[derive(Serialize)]
 pub struct StartMessage {}
 
@@ -58,7 +57,7 @@ impl Process {
                 },
                 peer,
             );
-            self.ctx.async_handle_event::<PongMessage>(peer, self.ctx.id()).await;
+            self.ctx.async_handle_event::<PongMessage>(peer).await;
         }
     }
 
@@ -139,7 +138,7 @@ impl NetworkProcess {
                 peer,
             );
 
-            self.ctx.async_handle_event::<PongMessage>(peer, self.id).await;
+            self.ctx.async_handle_event::<PongMessage>(peer).await;
         }
     }
 

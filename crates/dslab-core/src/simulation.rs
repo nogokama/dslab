@@ -14,9 +14,10 @@ use serde_json::json;
 use serde_type_name::type_name;
 
 use crate::async_core::executor::Executor;
-use crate::async_core::shared_state::AwaitKey;
+use crate::async_core::shared_state::{AwaitKey, DetailsKey};
 use crate::component::Id;
 use crate::context::SimulationContext;
+use crate::event::EventData;
 use crate::handler::EventHandler;
 use crate::log::log_undelivered_event;
 use crate::state::SimulationState;
@@ -394,13 +395,22 @@ impl Simulation {
     fn process_event(&mut self) -> bool {
         let event = self.sim_state.borrow_mut().next_event().unwrap();
 
-        let await_key = AwaitKey {
-            from: event.src,
-            to: event.dest,
-            msg_type: event.data.as_ref().type_id(),
-        };
+        let await_key = self.get_await_key(&event);
 
         if self.sim_state.borrow().has_handler_on_key(&await_key) {
+            if log_enabled!(Trace) {
+                let src_name = self.lookup_name(event.src);
+                let dest_name = self.lookup_name(event.dest);
+                trace!(
+                    target: &dest_name,
+                    "[{:.3} {} {}] {}",
+                    event.time,
+                    crate::log::get_colored("EVENT", colored::Color::BrightBlack),
+                    dest_name,
+                    json!({"type": type_name(&event.data).unwrap(), "data": event.data, "src": src_name})
+                );
+            }
+
             self.sim_state.borrow_mut().set_event_for_await_key(&await_key, event);
 
             self.process_task();
@@ -431,12 +441,34 @@ impl Simulation {
         return true;
     }
 
+    fn get_await_key(&self, event: &Event) -> AwaitKey {
+        match self.sim_state.borrow().get_details_getter(event.data.type_id()) {
+            Some(getter) => AwaitKey::new_with_details_by_ref(
+                event.src,
+                event.dest,
+                event.data.as_ref(),
+                getter(event.data.as_ref()),
+            ),
+            None => AwaitKey::new_by_ref(event.src, event.dest, event.data.as_ref()),
+        }
+    }
+
     fn process_task(&self) -> bool {
         self.executor.process_task()
     }
 
-    pub fn spawn(&self, future: impl Future<Output = ()> + 'static) {
+    pub fn spawn(&self, future: impl Future<Output = ()>) {
+        self.sim_state.borrow_mut().spawn(future);
+    }
+
+    pub fn spawn_static(&self, future: impl Future<Output = ()> + 'static) {
         self.sim_state.borrow_mut().spawn_static(future);
+    }
+
+    pub fn register_details_getter_for<T: EventData>(&self, details_getter: fn(&dyn EventData) -> DetailsKey) {
+        self.sim_state
+            .borrow_mut()
+            .register_details_getter_for::<T>(details_getter);
     }
 
     /// Performs the specified number of steps through the simulation.
