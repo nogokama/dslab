@@ -9,6 +9,7 @@ use futures::Future;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::prelude::Distribution;
 
+use crate::async_core;
 use crate::async_core::shared_state::{AwaitKey, AwaitResult, DetailsKey, EventFuture, SharedState, TimerFuture};
 use crate::component::Id;
 use crate::event::{Event, EventData, EventId};
