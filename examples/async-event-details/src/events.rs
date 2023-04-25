@@ -7,17 +7,13 @@ use serde::Serialize;
 pub struct Start {}
 
 #[derive(Serialize)]
+pub struct TaskCompleted {}
+#[derive(Serialize)]
 pub struct TaskRequest {
     pub flops: u64,
     pub memory: u64,
     pub cores: u32,
 }
-
-#[derive(Serialize)]
-pub struct TakeTask {}
-
-#[derive(Serialize)]
-pub struct TaskCompleted {}
 
 pub fn get_compute_start_id(data: &dyn EventData) -> DetailsKey {
     let event = data.downcast_ref::<CompStarted>().unwrap();

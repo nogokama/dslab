@@ -13,6 +13,7 @@ use rand::prelude::Distribution;
 use serde_json::json;
 use serde_type_name::type_name;
 
+use crate::async_core::channel::channel::Channel;
 use crate::async_core::executor::Executor;
 use crate::async_core::shared_state::{AwaitKey, DetailsKey};
 use crate::component::Id;
@@ -469,6 +470,13 @@ impl Simulation {
             self.sim_state
                 .borrow_mut()
                 .register_details_getter_for::<T>(details_getter);
+        }
+
+        pub fn create_channel<T, S>(&mut self, name: S) -> Channel<T>
+        where
+            S: AsRef<str>,
+        {
+            Channel::new(self.create_context(name))
         }
     }
 

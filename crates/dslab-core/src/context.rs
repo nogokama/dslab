@@ -5,10 +5,12 @@ use std::any::{type_name, TypeId};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use futures::channel::oneshot::Cancellation;
 use futures::Future;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::prelude::Distribution;
 
+use crate::async_core::channel::channel::Channel;
 use crate::async_core::shared_state::{AwaitKey, AwaitResult, DetailsKey, EventFuture, SharedState, TimerFuture};
 use crate::component::Id;
 use crate::event::{Event, EventData, EventId};
@@ -16,6 +18,7 @@ use crate::state::SimulationState;
 use crate::{async_core, async_details_core};
 
 /// A facade for accessing the simulation state and producing events from simulation components.
+#[derive(Clone)]
 pub struct SimulationContext {
     id: Id,
     name: String,
@@ -770,6 +773,12 @@ impl SimulationContext {
         {
             self.async_detailed_handle_event_to::<T>(self.id, self.id, details)
                 .await
+        }
+
+        pub fn register_details_getter_for<T: EventData>(&self, details_getter: fn(&dyn EventData) -> DetailsKey) {
+            self.sim_state
+                .borrow_mut()
+                .register_details_getter_for::<T>(details_getter);
         }
     }
 

@@ -17,6 +17,8 @@ use sugars::{rc, refcell};
 use dslab_compute::multicore::{CompFailed, CompFinished, CompStarted, Compute, CoresDependency};
 use dslab_core::{simulation::Simulation, Id, SimulationContext};
 
+use crate::process::TaskInfo;
+
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
@@ -85,6 +87,7 @@ fn main() {
 
     let compute_name = format!("{}::compute", host);
     let worker_name = format!("{}:worker", host);
+    let worker_chan_name = format!("{}:task_channel", &worker_name);
 
     let compute_context = sim.create_context(&compute_name);
 
@@ -102,7 +105,8 @@ fn main() {
     let worker = rc!(refcell!(Worker::new(
         compute,
         compute_id,
-        sim.create_context(&worker_name)
+        sim.create_context(&worker_name),
+        sim.create_channel::<TaskInfo, &String>(&worker_chan_name),
     )));
 
     sim.add_handler(worker_name, worker.clone());

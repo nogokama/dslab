@@ -1,6 +1,7 @@
 use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 use dslab_compute::multicore::{CompFailed, CompFinished, CompStarted, Compute};
+use dslab_core::async_core::channel::channel::Channel;
 use dslab_core::async_core::shared_state::DetailsKey;
 use dslab_core::{async_core::task::Task, cast, event::EventId, log_debug, Event, EventHandler, Id, SimulationContext};
 use log::debug;
@@ -13,10 +14,10 @@ use serde_json::json;
 
 use sugars::{rc, refcell};
 
-use crate::events::{Start, TakeTask, TaskCompleted, TaskRequest};
+use crate::events::{Start, TaskCompleted, TaskRequest};
 
 #[derive(Serialize)]
-struct TaskInfo {
+pub struct TaskInfo {
     flops: u64,
     memory: u64,
     cores: u32,
@@ -27,17 +28,22 @@ pub struct Worker {
     compute: Rc<RefCell<Compute>>,
     compute_id: Id,
     ctx: SimulationContext,
-    tasks_queue: RefCell<VecDeque<TaskInfo>>,
+    task_chan: Channel<TaskInfo>,
 }
 
 impl Worker {
-    pub fn new(compute: Rc<RefCell<Compute>>, compute_id: Id, ctx: SimulationContext) -> Self {
+    pub fn new(
+        compute: Rc<RefCell<Compute>>,
+        compute_id: Id,
+        ctx: SimulationContext,
+        task_chan: Channel<TaskInfo>,
+    ) -> Self {
         Self {
             id: ctx.id(),
             compute,
             compute_id,
             ctx,
-            tasks_queue: refcell!(VecDeque::new()),
+            task_chan,
         }
     }
 
@@ -51,23 +57,15 @@ impl Worker {
     }
 
     fn on_task_request(&self, task_info: TaskInfo) {
-        if self.tasks_queue.borrow().is_empty() {
-            self.ctx.emit_self_now(TakeTask {});
-        }
-
         log_debug!(self.ctx, format!("Received task: {}", json!(&task_info)));
 
-        self.tasks_queue.borrow_mut().push_back(task_info);
+        self.task_chan.send(task_info);
     }
 
     async fn work_loop(&self) {
         let mut tasks_completed = 0;
         loop {
-            if self.tasks_queue.borrow().is_empty() {
-                self.ctx.async_handle_self::<TakeTask>().await;
-            }
-
-            let task_info = self.tasks_queue.borrow_mut().pop_front().unwrap();
+            let task_info = self.task_chan.receive().await;
 
             while !self.try_start_process_task(&task_info).await {
                 self.ctx.async_handle_self::<TaskCompleted>().await;
@@ -129,7 +127,6 @@ impl EventHandler for Worker {
             Start {} => {
                 self.on_start();
             }
-            TakeTask {} => {}
             TaskCompleted {} => {}
         })
     }
