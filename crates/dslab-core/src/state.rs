@@ -35,6 +35,7 @@ pub struct SimulationState {
     details_getters: HashMap<TypeId, fn(&dyn EventData) -> DetailsKey>,
 
     timers: BinaryHeap<Timer>,
+    timer_count: u64,
 
     task_sender: Sender<Arc<Task>>,
 }
@@ -51,6 +52,7 @@ impl SimulationState {
             awaiters: HashMap::new(),
             details_getters: HashMap::new(),
             timers: BinaryHeap::new(),
+            timer_count: 0,
 
             task_sender,
         }
@@ -269,16 +271,18 @@ impl SimulationState {
         self.task_sender.send(task).expect("channel is closed");
     }
 
-    pub fn wait_for(&mut self, timeout: f64) -> TimerFuture {
+    pub fn wait_for(&mut self, component_id: Id, timeout: f64) -> TimerFuture {
         let state = Rc::new(RefCell::new(SharedState::<EmptyData>::default()));
+        let timer = self.get_timer(component_id, self.time() + timeout, state.clone());
 
-        self.timers.push(Timer::new(self.time() + timeout, state.clone()));
+        self.timers.push(timer);
 
         TimerFuture { state }
     }
 
-    pub fn add_timer_on_state(&mut self, timeout: f64, state: Rc<RefCell<dyn EventSetter>>) {
-        self.timers.push(Timer::new(self.time() + timeout, state.clone()));
+    pub fn add_timer_on_state(&mut self, component_id: Id, timeout: f64, state: Rc<RefCell<dyn EventSetter>>) {
+        let timer = self.get_timer(component_id, self.time() + timeout, state);
+        self.timers.push(timer);
     }
 
     pub fn add_awaiter_handler(&mut self, key: AwaitKey, state: Rc<RefCell<dyn EventSetter>>) {
@@ -294,5 +298,10 @@ impl SimulationState {
             Some(f) => Some(*f),
             None => None,
         }
+    }
+
+    fn get_timer(&mut self, component_id: Id, time: f64, state: Rc<RefCell<dyn EventSetter>>) -> Timer {
+        self.timer_count += 1;
+        Timer::new(self.timer_count, component_id, time, state)
     }
 }

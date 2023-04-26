@@ -661,7 +661,7 @@ impl SimulationContext {
 
     async_core! {
         pub fn async_wait_for(&self, timeout: f64) -> TimerFuture {
-            self.sim_state.borrow_mut().wait_for(timeout)
+            self.sim_state.borrow_mut().wait_for(self.id, timeout)
         }
 
         pub fn spawn(&self, future: impl Future<Output = ()>) {
@@ -672,35 +672,11 @@ impl SimulationContext {
             self.sim_state.borrow_mut().spawn_static(future);
         }
 
-        pub fn async_wait_for_event_to<T>(&self, src: Id, dst: Id, timeout: f64) -> EventFuture<T>
-        where
-            T: EventData,
-        {
-            if self.sim_state.borrow().get_details_getter(TypeId::of::<T>()).is_some() {
-                panic!("try to async handle event that has detailed key handling, use async details handlers")
-            }
-
-            let await_key = AwaitKey::new::<T>(src, dst);
-
-            self.create_event_future(await_key, timeout)
-        }
-
         pub fn async_wait_for_event<T>(&self, src: Id, timeout: f64) -> EventFuture<T>
         where
             T: EventData,
         {
             self.async_wait_for_event_to(src, self.id, timeout)
-        }
-
-        pub async fn async_handle_event_to<T>(&self, src: Id, dst: Id) -> (Event, T)
-        where
-            T: EventData,
-        {
-            let result = self.async_wait_for_event_to::<T>(src, dst, -1.).await;
-            match result {
-                AwaitResult::Ok(t) => t,
-                AwaitResult::Timeout(_) => panic!("unexpected timeout"),
-            }
         }
 
         pub async fn async_handle_event<T>(&self, src: Id) -> (Event, T)
@@ -716,48 +692,39 @@ impl SimulationContext {
         {
             self.async_handle_event_to::<T>(self.id, self.id).await
         }
+
+        async fn async_handle_event_to<T>(&self, src: Id, dst: Id) -> (Event, T)
+        where
+            T: EventData,
+        {
+            let result = self.async_wait_for_event_to::<T>(src, dst, -1.).await;
+            match result {
+                AwaitResult::Ok(t) => t,
+                AwaitResult::Timeout(_) => panic!("unexpected timeout"),
+            }
+        }
+
+        fn async_wait_for_event_to<T>(&self, src: Id, dst: Id, timeout: f64) -> EventFuture<T>
+        where
+            T: EventData,
+        {
+            if self.sim_state.borrow().get_details_getter(TypeId::of::<T>()).is_some() {
+                panic!("try to async handle event that has detailed key handling, use async details handlers")
+            }
+
+            let await_key = AwaitKey::new::<T>(src, dst);
+
+            self.create_event_future(await_key, timeout)
+        }
     }
 
     async_details_core! {
         /// Example of documentation
-        pub fn async_detailed_wait_for_event_to<T>(
-            &self,
-            src: Id,
-            dst: Id,
-            details: DetailsKey,
-            timeout: f64,
-        ) -> EventFuture<T>
-        where
-            T: EventData,
-        {
-            if self.sim_state.borrow().get_details_getter(TypeId::of::<T>()).is_none() {
-                panic!(
-                    "simulation does not have details getter for type {}, register it before useing async_detailed getters",
-                    type_name::<T>()
-                );
-            }
-
-            let await_key = AwaitKey::new_with_details::<T>(src, dst, details);
-
-            self.create_event_future(await_key, timeout)
-        }
-
         pub fn async_detailed_wait_for_event<T>(&self, src: Id, details: DetailsKey, timeout: f64) -> EventFuture<T>
         where
             T: EventData,
         {
             self.async_detailed_wait_for_event_to(src, self.id, details, timeout)
-        }
-
-        pub async fn async_detailed_handle_event_to<T>(&self, src: Id, dst: Id, details: DetailsKey) -> (Event, T)
-        where
-            T: EventData,
-        {
-            let result = self.async_detailed_wait_for_event_to::<T>(src, dst, details, -1.).await;
-            match result {
-                AwaitResult::Ok(t) => t,
-                AwaitResult::Timeout(_) => panic!("unexpected timeout"),
-            }
         }
 
         pub async fn async_detailed_handle_event<T>(&self, src: Id, details: DetailsKey) -> (Event, T)
@@ -780,6 +747,39 @@ impl SimulationContext {
                 .borrow_mut()
                 .register_details_getter_for::<T>(details_getter);
         }
+
+        fn async_detailed_wait_for_event_to<T>(
+            &self,
+            src: Id,
+            dst: Id,
+            details: DetailsKey,
+            timeout: f64,
+        ) -> EventFuture<T>
+        where
+            T: EventData,
+        {
+            if self.sim_state.borrow().get_details_getter(TypeId::of::<T>()).is_none() {
+                panic!(
+                    "simulation does not have details getter for type {}, register it before useing async_detailed getters",
+                    type_name::<T>()
+                );
+            }
+
+            let await_key = AwaitKey::new_with_details::<T>(src, dst, details);
+
+            self.create_event_future(await_key, timeout)
+        }
+
+        async fn async_detailed_handle_event_to<T>(&self, src: Id, dst: Id, details: DetailsKey) -> (Event, T)
+        where
+            T: EventData,
+        {
+            let result = self.async_detailed_wait_for_event_to::<T>(src, dst, details, -1.).await;
+            match result {
+                AwaitResult::Ok(t) => t,
+                AwaitResult::Timeout(_) => panic!("unexpected timeout"),
+            }
+        }
     }
 
     async_core! {
@@ -791,7 +791,7 @@ impl SimulationContext {
             state.borrow_mut().shared_content = AwaitResult::timeout_with(await_key.from, await_key.to);
 
             if timeout >= 0. {
-                self.sim_state.borrow_mut().add_timer_on_state(timeout, state.clone());
+                self.sim_state.borrow_mut().add_timer_on_state(await_key.to, timeout, state.clone());
             }
 
             self.sim_state

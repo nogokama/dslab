@@ -7,21 +7,19 @@ use super::shared_state::EventSetter;
 type TimerId = u64;
 
 pub struct Timer {
-    pub id: TimerId,
+    id: TimerId,
+    pub component_id: Id,
     pub time: f64,
     pub state: Rc<RefCell<dyn EventSetter>>,
 }
 
 impl Timer {
-    pub fn new(time: f64, state: Rc<RefCell<dyn EventSetter>>) -> Self {
-        static mut TIMER_COUNTER: TimerId = 0;
-        unsafe {
-            TIMER_COUNTER += 1;
-            Self {
-                id: TIMER_COUNTER,
-                time,
-                state,
-            }
+    pub fn new(id: TimerId, component_id: Id, time: f64, state: Rc<RefCell<dyn EventSetter>>) -> Self {
+        Self {
+            id,
+            component_id,
+            time,
+            state,
         }
     }
 }
