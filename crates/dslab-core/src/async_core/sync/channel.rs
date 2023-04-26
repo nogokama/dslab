@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::VecDeque};
 
 use serde::Serialize;
 
-use crate::{async_core::shared_state::DetailsKey, event::EventData, SimulationContext};
+use crate::{async_core::shared_state::DetailsKey, async_details_core, event::EventData, SimulationContext};
 
 type TicketID = u64;
 
@@ -24,35 +24,37 @@ pub struct Channel<T> {
 }
 
 impl<T> Channel<T> {
-    pub(crate) fn new(ctx: SimulationContext) -> Self {
-        ctx.register_details_getter_for::<Notify>(get_notify_details);
-        Self {
-            ctx,
-            queue: RefCell::new(VecDeque::new()),
-            send_ticket: Ticket::new(),
-            receive_ticket: Ticket::new(),
-        }
-    }
-
-    pub fn send(&self, data: T) {
-        self.send_ticket.next();
-        self.queue.borrow_mut().push_back(data);
-        if self.receive_ticket.is_after(&self.send_ticket) {
-            self.ctx.emit_self_now(Notify {
-                ticket_id: self.send_ticket.value(),
-            });
-        }
-    }
-
-    pub async fn receive(&self) -> T {
-        self.receive_ticket.next();
-        if self.queue.borrow().is_empty() {
-            self.ctx
-                .async_detailed_handle_self::<Notify>(self.receive_ticket.value())
-                .await;
+    async_details_core! {
+        pub(crate) fn new(ctx: SimulationContext) -> Self {
+            ctx.register_details_getter_for::<Notify>(get_notify_details);
+            Self {
+                ctx,
+                queue: RefCell::new(VecDeque::new()),
+                send_ticket: Ticket::new(),
+                receive_ticket: Ticket::new(),
+            }
         }
 
-        self.queue.borrow_mut().pop_front().unwrap()
+        pub fn send(&self, data: T) {
+            self.send_ticket.next();
+            self.queue.borrow_mut().push_back(data);
+            if self.receive_ticket.is_after(&self.send_ticket) {
+                self.ctx.emit_self_now(Notify {
+                    ticket_id: self.send_ticket.value(),
+                });
+            }
+        }
+
+        pub async fn receive(&self) -> T {
+            self.receive_ticket.next();
+            if self.queue.borrow().is_empty() {
+                self.ctx
+                    .async_detailed_handle_self::<Notify>(self.receive_ticket.value())
+                    .await;
+            }
+
+            self.queue.borrow_mut().pop_front().unwrap()
+        }
     }
 }
 
