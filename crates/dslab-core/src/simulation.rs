@@ -13,9 +13,9 @@ use rand::prelude::Distribution;
 use serde_json::json;
 use serde_type_name::type_name;
 
-use crate::async_core::channel::channel::Channel;
 use crate::async_core::executor::Executor;
 use crate::async_core::shared_state::{AwaitKey, DetailsKey};
+use crate::async_core::sync::channel::Channel;
 use crate::component::Id;
 use crate::context::SimulationContext;
 use crate::event::EventData;

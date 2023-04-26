@@ -1,8 +1,8 @@
 use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 use dslab_compute::multicore::{CompFailed, CompFinished, CompStarted, Compute};
-use dslab_core::async_core::channel::channel::Channel;
 use dslab_core::async_core::shared_state::DetailsKey;
+use dslab_core::async_core::sync::channel::Channel;
 use dslab_core::{async_core::task::Task, cast, event::EventId, log_debug, Event, EventHandler, Id, SimulationContext};
 use log::debug;
 
