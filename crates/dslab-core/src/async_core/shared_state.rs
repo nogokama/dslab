@@ -12,7 +12,7 @@ use std::{
 
 pub type DetailsKey = u64;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct EmptyData {}
 
 pub enum AwaitResult<T: EventData> {

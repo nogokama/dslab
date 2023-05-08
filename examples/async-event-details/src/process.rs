@@ -18,7 +18,7 @@ use crate::events::{Start, TaskCompleted, TaskRequest};
 
 #[derive(Serialize)]
 pub struct TaskInfo {
-    flops: u64,
+    flops: f64,
     memory: u64,
     cores: u32,
 }

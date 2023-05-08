@@ -6,7 +6,7 @@ use crate::{async_core::shared_state::DetailsKey, async_details_core, event::Eve
 
 type TicketID = u64;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 struct Notify {
     ticket_id: TicketID,
 }

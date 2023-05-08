@@ -3,14 +3,15 @@ use dslab_core::{async_core::shared_state::DetailsKey, event::EventData};
 
 use serde::Serialize;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Start {}
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct TaskCompleted {}
-#[derive(Serialize)]
+
+#[derive(Serialize, Clone)]
 pub struct TaskRequest {
-    pub flops: u64,
+    pub flops: f64,
     pub memory: u64,
     pub cores: u32,
 }

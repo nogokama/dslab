@@ -101,9 +101,10 @@ fn main() {
     let network = rc!(refcell!(Network::new(network_model, network_ctx)));
     sim.add_handler("net", network.clone());
     for i in 0..host_count {
-        network
-            .borrow_mut()
-            .add_node(&format!("host{}", i), local_bandwidth as f64, local_latency);
+        network.borrow_mut().add_node(
+            &format!("host{}", i),
+            Box::new(SharedBandwidthNetwork::new(local_bandwidth as f64, local_latency)),
+        );
     }
     let hosts = network.borrow().get_nodes();
 
@@ -120,7 +121,7 @@ fn main() {
         // compute
         let compute_name = format!("{}::compute", host);
         let compute = rc!(refcell!(Compute::new(
-            rand.gen_range(1..=10),
+            rand.gen_range(1..=10) as f64,
             rand.gen_range(1..=8),
             rand.gen_range(1..=4) * 1024,
             sim.create_context(&compute_name),
@@ -151,7 +152,7 @@ fn main() {
     for i in 0..task_count {
         let task = TaskRequest {
             id: i,
-            flops: rand.gen_range(100..=1000),
+            flops: rand.gen_range(100..=1000) as f64,
             memory: rand.gen_range(1..=8) * 128,
             min_cores: 1,
             max_cores: 1,

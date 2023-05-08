@@ -5,15 +5,15 @@ use dslab_network::network::Network;
 
 use serde::Serialize;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct StartMessage {}
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct PingMessage {
     payload: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct PongMessage {
     payload: f64,
 }

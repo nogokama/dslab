@@ -6,6 +6,7 @@ use super::shared_state::EventSetter;
 
 type TimerId = u64;
 
+#[derive(Clone)]
 pub struct Timer {
     id: TimerId,
     pub component_id: Id,

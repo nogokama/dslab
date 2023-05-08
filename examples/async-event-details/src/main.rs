@@ -50,7 +50,7 @@ impl Client {
 
     async fn submit_tasks(&self) {
         for i in 0..self.task_count {
-            let flops = self.ctx.gen_range(1..=3000) as u64;
+            let flops = self.ctx.gen_range(1..=3000) as f64;
             let cores = self.ctx.gen_range(1..=8) as u32;
             let memory = self.ctx.gen_range(1..=4) * 1024 as u64;
 
@@ -94,7 +94,7 @@ fn main() {
     let compute_id = compute_context.id();
 
     let compute = rc!(refcell!(Compute::new(
-        rand.gen_range(1..=10),
+        rand.gen_range(1..=10) as f64,
         rand.gen_range(1..=8) + 8,
         (rand.gen_range(1..=4) + 4) * 1024,
         compute_context,
