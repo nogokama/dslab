@@ -51,7 +51,7 @@ impl Client {
         for _i in 0..self.task_count {
             let flops = self.ctx.gen_range(1..=3000) as f64;
             let cores = self.ctx.gen_range(1..=8) as u32;
-            let memory = self.ctx.gen_range(1..=4) * 1024 as u64;
+            let memory = self.ctx.gen_range(1..=4) * 1024_u64;
 
             self.ctx.emit_now(TaskRequest { flops, cores, memory }, self.worker_id);
 

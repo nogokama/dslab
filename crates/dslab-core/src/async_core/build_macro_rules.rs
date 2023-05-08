@@ -1,3 +1,4 @@
+/// wrap code that will be built for async dslab-core functionality
 #[macro_export]
 macro_rules! async_core {
     ($($item:item)*) => {
@@ -6,6 +7,8 @@ macro_rules! async_core {
     }
 }
 
+/// wrap code that will be built for async dslab-core functionality, but not for
+/// async-details functionality
 #[macro_export]
 macro_rules! async_only_core {
     ($($item:item)*) => {
@@ -14,6 +17,7 @@ macro_rules! async_only_core {
     }
 }
 
+/// wrap code that will be build for async-details dslab-core functionality
 #[macro_export]
 macro_rules! async_details_core {
     ($($item:item)*) => {
@@ -22,6 +26,7 @@ macro_rules! async_details_core {
     }
 }
 
+/// wrap code that will be built only if async functionality is disabled
 #[macro_export]
 macro_rules! async_disabled {
     ($($item:item)*) => {

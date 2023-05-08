@@ -20,10 +20,10 @@ pub fn get_data_write_completed_details(data: &dyn EventData) -> DetailsKey {
 
 pub fn get_compute_start_details(data: &dyn EventData) -> DetailsKey {
     let event = data.downcast_ref::<CompStarted>().unwrap();
-    return event.id;
+    event.id
 }
 
 pub fn get_compute_finished_details(data: &dyn EventData) -> DetailsKey {
     let event = data.downcast_ref::<CompFinished>().unwrap();
-    return event.id;
+    event.id
 }

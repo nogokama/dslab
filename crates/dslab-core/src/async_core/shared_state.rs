@@ -1,3 +1,5 @@
+//! Shared state and event notification
+
 use crate::event::EventData;
 use crate::{Event, Id};
 use serde::Serialize;
@@ -10,13 +12,17 @@ use std::{
     task::{Poll, Waker},
 };
 
+/// type of key that represents the details of event to wait for
 pub type DetailsKey = u64;
 
 #[derive(Serialize, Clone)]
-pub struct EmptyData {}
+pub(crate) struct EmptyData {}
 
+/// enum represents the await resuls of SimulationContext::async_wait_for_event...
 pub enum AwaitResult<T: EventData> {
+    /// contains Event with time and source that it was waited from. Id and data are empty
     Timeout(Event),
+    /// contains full event without data, and data of specific type separately
     Ok((Event, T)),
 }
 
@@ -33,6 +39,7 @@ impl<T: EventData> Default for AwaitResult<T> {
 }
 
 impl<T: EventData> AwaitResult<T> {
+    /// create a default result
     pub fn timeout_with(src: Id, dest: Id) -> Self {
         Self::Timeout(Event {
             id: 0,
@@ -44,8 +51,7 @@ impl<T: EventData> AwaitResult<T> {
     }
 }
 
-pub struct SharedState<T: EventData> {
-    /// Whether or not the sleep time has elapsed
+pub(crate) struct AwaitEventSharedState<T: EventData> {
     pub completed: bool,
 
     pub waker: Option<Waker>,
@@ -53,7 +59,7 @@ pub struct SharedState<T: EventData> {
     pub shared_content: AwaitResult<T>,
 }
 
-impl<T: EventData> Default for SharedState<T> {
+impl<T: EventData> Default for AwaitEventSharedState<T> {
     fn default() -> Self {
         Self {
             completed: false,
@@ -63,13 +69,13 @@ impl<T: EventData> Default for SharedState<T> {
     }
 }
 
-pub trait EventSetter: Any {
+pub(crate) trait AwaitResultSetter: Any {
     fn set_ok_completed_with_event(&mut self, e: Event);
     fn set_completed(&mut self);
     fn is_completed(&self) -> bool;
 }
 
-impl<T: EventData> EventSetter for SharedState<T> {
+impl<T: EventData> AwaitResultSetter for AwaitEventSharedState<T> {
     fn is_completed(&self) -> bool {
         self.completed
     }
@@ -104,8 +110,10 @@ impl<T: EventData> EventSetter for SharedState<T> {
     }
 }
 
+/// Future represents AwaitResult for event (Ok or Timeout)
 pub struct EventFuture<T: EventData> {
-    pub state: Rc<RefCell<SharedState<T>>>,
+    /// state with event data
+    pub(crate) state: Rc<RefCell<AwaitEventSharedState<T>>>,
 }
 
 impl<T: EventData> Future for EventFuture<T> {
@@ -121,12 +129,14 @@ impl<T: EventData> Future for EventFuture<T> {
         let mut filler = AwaitResult::default();
         std::mem::swap(&mut filler, &mut state.shared_content);
 
-        return Poll::Ready(filler);
+        Poll::Ready(filler)
     }
 }
 
+/// Future that represents timer from simulation
 pub struct TimerFuture {
-    pub state: Rc<RefCell<SharedState<EmptyData>>>,
+    /// state that should be completed after timer fired
+    pub(crate) state: Rc<RefCell<AwaitEventSharedState<EmptyData>>>,
 }
 
 impl Future for TimerFuture {
@@ -140,12 +150,12 @@ impl Future for TimerFuture {
             return Poll::Pending;
         }
 
-        return Poll::Ready(());
+        Poll::Ready(())
     }
 }
 
 #[derive(Hash, PartialEq, Eq, Debug, Clone)]
-pub struct AwaitKey {
+pub(crate) struct AwaitKey {
     pub from: Id,
     pub to: Id,
     pub msg_type: TypeId,

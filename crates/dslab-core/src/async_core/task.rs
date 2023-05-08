@@ -1,3 +1,5 @@
+//! task declaration
+
 use std::{
     cell::RefCell,
     pin::Pin,
@@ -7,20 +9,17 @@ use std::{
 use super::waker::CustomWake;
 use std::future::Future;
 
+/// Abstract task that contains future and sends itself to the executor on
+/// wake-up notification
 pub struct Task {
+    /// future to be polled by executor
     pub future: RefCell<Option<Pin<Box<dyn Future<Output = ()>>>>>,
 
     task_sender: Sender<Arc<Task>>,
 }
 
 impl Task {
-    pub fn new_static(future: impl Future<Output = ()> + 'static, task_sender: Sender<Arc<Task>>) -> Self {
-        Self {
-            future: RefCell::new(Some(Box::pin(future))),
-            task_sender,
-        }
-    }
-
+    /// Create a new task from future. TODO explain unsafe
     pub fn new(future: impl Future<Output = ()>, task_sender: Sender<Arc<Task>>) -> Self {
         unsafe {
             let boxed: Box<dyn Future<Output = ()>> = Box::new(future);

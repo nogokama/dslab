@@ -44,7 +44,7 @@ impl Simulation {
             name_to_id: HashMap::new(),
             names: Rc::new(RefCell::new(Vec::new())),
             handlers: Vec::new(),
-            executor: Executor { ready_queue },
+            executor: Executor::new(ready_queue),
         }
     }
 
@@ -350,6 +350,8 @@ impl Simulation {
     /// status = sim.step();
     /// assert!(!status);
     /// ```
+    ///
+    /// Definition of step is different for different build features of dslab-core.
     pub fn step(&mut self) -> bool {
         self.step_inner()
     }
@@ -429,7 +431,7 @@ impl Simulation {
 
             self.deliver_event_via_handler(event);
 
-            return true;
+            true
         }
 
         fn process_task(&self) -> bool {
@@ -444,12 +446,9 @@ impl Simulation {
             self.process_task();
         }
 
+        /// spawn the background process. Similar to "launch a new thread"
         pub fn spawn(&self, future: impl Future<Output = ()>) {
             self.sim_state.borrow_mut().spawn(future);
-        }
-
-        pub fn spawn_static(&self, future: impl Future<Output = ()> + 'static) {
-            self.sim_state.borrow_mut().spawn_static(future);
         }
     }
 
@@ -466,12 +465,32 @@ impl Simulation {
             }
         }
 
+        /// Register the function for a type of EventData to get await details to futher call
+        /// ctx.async_detailed_handle_event::<T>(from, details)
+        ///
+        /// # Example
+        /// ```rust
+        ///
+        /// pub struct TaskCompleted {
+        ///     request_id: u64
+        ///     some_other_data: u64
+        /// }
+        ///
+        /// pub fn get_task_completed_details(data: &dyn EventData) -> DetailsKey {
+        ///     let event = data.downcast_ref::<TaskCompleted>().unwrap();
+        ///     event.request_id as DetailsKey
+        /// }
+        ///
+        /// let sim = Simulation::new(42);
+        /// sim.register_details_getter_for::<TaskCompleted>(get_task_completed_details);
+        /// ```
         pub fn register_details_getter_for<T: EventData>(&self, details_getter: fn(&dyn EventData) -> DetailsKey) {
             self.sim_state
                 .borrow_mut()
                 .register_details_getter_for::<T>(details_getter);
         }
 
+        /// Create a simulation go-like Channel for "message-passing" data
         pub fn create_channel<T, S>(&mut self, name: S) -> Channel<T>
         where
             S: AsRef<str>,

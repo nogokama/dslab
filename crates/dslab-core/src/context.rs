@@ -9,7 +9,9 @@ use futures::Future;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::prelude::Distribution;
 
-use crate::async_core::shared_state::{AwaitKey, AwaitResult, DetailsKey, EventFuture, SharedState, TimerFuture};
+use crate::async_core::shared_state::{
+    AwaitEventSharedState, AwaitKey, AwaitResult, DetailsKey, EventFuture, TimerFuture,
+};
 
 use crate::component::Id;
 use crate::event::{Event, EventData, EventId};
@@ -659,18 +661,27 @@ impl SimulationContext {
     }
 
     async_core! {
-        pub fn async_wait_for(&self, timeout: f64) -> TimerFuture {
-            self.sim_state.borrow_mut().wait_for(self.id, timeout)
-        }
-
+        /// spawn a background separate task
         pub fn spawn(&self, future: impl Future<Output = ()>) {
             self.sim_state.borrow_mut().spawn(future);
         }
 
-        pub fn spawn_static(&self, future: impl Future<Output = ()> + 'static) {
-            self.sim_state.borrow_mut().spawn_static(future);
+        /// wait for the given timeout.
+        ///
+        /// Example:
+        /// ```rust
+        /// ctx.async_wait_for(5.).await;
+        /// ```
+        pub fn async_wait_for(&self, timeout: f64) -> TimerFuture {
+            self.sim_state.borrow_mut().wait_for(self.id, timeout)
         }
 
+
+        /// async wait for any event of type T from src component with timeout
+        /// Example:
+        /// ```rust
+        /// let event_result = ctx.async_wait_for_event::<PingMessage>(pinger_id, timeout).await;
+        /// ```
         pub fn async_wait_for_event<T>(&self, src: Id, timeout: f64) -> EventFuture<T>
         where
             T: EventData,
@@ -678,6 +689,11 @@ impl SimulationContext {
             self.async_wait_for_event_to(src, self.id, timeout)
         }
 
+        /// async wait for any event of type T from src component without timeout
+        /// Example:
+        /// ```rust
+        /// let (event, data) = ctx.async_handle_event::<PingMessage>(pinger_id).await;
+        /// ```
         pub async fn async_handle_event<T>(&self, src: Id) -> (Event, T)
         where
             T: EventData,
@@ -685,6 +701,7 @@ impl SimulationContext {
             self.async_handle_event_to::<T>(src, self.id).await
         }
 
+        /// async handle event from self
         pub async fn async_handle_self<T>(&self) -> (Event, T)
         where
             T: EventData,
@@ -718,7 +735,12 @@ impl SimulationContext {
     }
 
     async_details_core! {
-        /// Example of documentation
+        /// async wait for event of type T from src component with details flag and timeout
+        /// Example:
+        /// ```rust
+        /// let request_id = disk.send_data_read_request(...);
+        /// let event_result = ctx.async_detailed_wait_for_event::<DataReadCompleted>(disk_id, request_id, timeout).await;
+        /// ```
         pub fn async_detailed_wait_for_event<T>(&self, src: Id, details: DetailsKey, timeout: f64) -> EventFuture<T>
         where
             T: EventData,
@@ -726,6 +748,12 @@ impl SimulationContext {
             self.async_detailed_wait_for_event_to(src, self.id, details, timeout)
         }
 
+        /// async wait for event of type T from src component with details flag without timeout
+        /// Example:
+        /// ```rust
+        /// let request_id = disk.send_data_read_request(...);
+        /// let (event, data) = ctx.async_detailed_handle_event::<DataReadCompleted>(disk_id, request_id).await;
+        /// ```
         pub async fn async_detailed_handle_event<T>(&self, src: Id, details: DetailsKey) -> (Event, T)
         where
             T: EventData,
@@ -733,6 +761,7 @@ impl SimulationContext {
             self.async_detailed_handle_event_to::<T>(src, self.id, details).await
         }
 
+        /// async detailed handle event from self
         pub async fn async_detailed_handle_self<T>(&self, details: DetailsKey) -> (Event, T)
         where
             T: EventData,
@@ -741,6 +770,27 @@ impl SimulationContext {
                 .await
         }
 
+        /// Register the function for a type of EventData to get await details to futher call
+        /// ctx.async_detailed_handle_event::<T>(from, details)
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        ///
+        /// pub struct TaskCompleted {
+        ///     request_id: u64
+        ///     some_other_data: u64
+        /// }
+        ///
+        /// pub fn get_task_completed_details(data: &dyn EventData) -> DetailsKey {
+        ///     let event = data.downcast_ref::<TaskCompleted>().unwrap();
+        ///     event.request_id as DetailsKey
+        /// }
+        ///
+        /// let sim = Simulation::new(42);
+        /// let ctx = sim.create_context("host")
+        /// ctx.register_details_getter_for::<TaskCompleted>(get_task_completed_details);
+        /// ```
         pub fn register_details_getter_for<T: EventData>(&self, details_getter: fn(&dyn EventData) -> DetailsKey) {
             self.sim_state
                 .borrow_mut()
@@ -786,7 +836,7 @@ impl SimulationContext {
         where
             T: EventData,
         {
-            let state = Rc::new(RefCell::new(SharedState::<T>::default()));
+            let state = Rc::new(RefCell::new(AwaitEventSharedState::<T>::default()));
             state.borrow_mut().shared_content = AwaitResult::timeout_with(await_key.from, await_key.to);
 
             if timeout >= 0. {

@@ -1,3 +1,5 @@
+//! channel implementation
+
 use std::{cell::RefCell, collections::VecDeque};
 
 use serde::Serialize;
@@ -16,6 +18,11 @@ fn get_notify_details(data: &dyn EventData) -> DetailsKey {
     notify.ticket_id as DetailsKey
 }
 
+/// Channel provides a go-like channel functionality for "message-passing" any type of data
+///
+/// It is implemented as MPMC Unbounded queue with blocking receives.
+///
+/// Data is guarantied to be delivered in order that receivers call their "receive" methods.
 pub struct Channel<T> {
     ctx: SimulationContext,
     queue: RefCell<VecDeque<T>>,
@@ -35,6 +42,7 @@ impl<T> Channel<T> {
             }
         }
 
+        /// Non-blocking send data to the channel
         pub fn send(&self, data: T) {
             self.send_ticket.next();
             self.queue.borrow_mut().push_back(data);
@@ -45,6 +53,7 @@ impl<T> Channel<T> {
             }
         }
 
+        /// Async receive data from channel. Each receive must be awaited.
         pub async fn receive(&self) -> T {
             self.receive_ticket.next();
             if self.queue.borrow().is_empty() {

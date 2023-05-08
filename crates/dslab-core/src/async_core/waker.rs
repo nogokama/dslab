@@ -1,3 +1,5 @@
+//! custom creating wakers to avoid Send+Sync dependency
+
 use std::{
     sync::Arc,
     task::{RawWaker, RawWakerVTable, Waker},
@@ -8,7 +10,7 @@ use core::mem::ManuallyDrop;
 
 use futures::task::WakerRef;
 
-pub trait CustomWake {
+pub(super) trait CustomWake {
     fn wake(self: Arc<Self>) {
         Self::wake_by_ref(&self)
     }
@@ -16,7 +18,7 @@ pub trait CustomWake {
     fn wake_by_ref(arc_self: &Arc<Self>);
 }
 
-pub fn waker_ref<W>(wake: &Arc<W>) -> WakerRef<'_>
+pub(super) fn waker_ref<W>(wake: &Arc<W>) -> WakerRef<'_>
 where
     W: CustomWake,
 {
@@ -41,7 +43,8 @@ pub(super) fn waker_vtable<W: CustomWake>() -> &'static RawWakerVTable {
 ///
 /// The returned [`Waker`] will call
 /// [`CustomWake.wake()`](CustomWake::wake) if awoken.
-pub fn waker<W>(wake: Arc<W>) -> Waker
+#[allow(dead_code)]
+pub(super) fn waker<W>(wake: Arc<W>) -> Waker
 where
     W: CustomWake + 'static,
 {

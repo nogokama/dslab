@@ -18,15 +18,15 @@ pub struct TaskRequest {
 
 pub fn get_compute_start_id(data: &dyn EventData) -> DetailsKey {
     let event = data.downcast_ref::<CompStarted>().unwrap();
-    return event.id;
+    event.id
 }
 
 pub fn get_compute_finished_id(data: &dyn EventData) -> DetailsKey {
     let event = data.downcast_ref::<CompFinished>().unwrap();
-    return event.id;
+    event.id
 }
 
 pub fn get_compute_failed_id(data: &dyn EventData) -> DetailsKey {
     let event = data.downcast_ref::<CompFailed>().unwrap();
-    return event.id;
+    event.id
 }
