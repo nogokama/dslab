@@ -5,7 +5,6 @@ use std::rc::Rc;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-use futures::stream::FuturesUnordered;
 use futures::Future;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::distributions::{Alphanumeric, DistString};

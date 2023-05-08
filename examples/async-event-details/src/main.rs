@@ -1,9 +1,8 @@
 mod events;
 mod process;
 
-use std::cell::RefCell;
 use std::io::Write;
-use std::rc::Rc;
+
 use std::time::Instant;
 
 use clap::Parser;
@@ -14,7 +13,7 @@ use rand::prelude::*;
 use rand_pcg::Pcg64;
 use sugars::{rc, refcell};
 
-use dslab_compute::multicore::{CompFailed, CompFinished, CompStarted, Compute, CoresDependency};
+use dslab_compute::multicore::{CompFailed, CompFinished, CompStarted, Compute};
 use dslab_core::{simulation::Simulation, Id, SimulationContext};
 
 use crate::process::TaskInfo;
@@ -49,7 +48,7 @@ impl Client {
     }
 
     async fn submit_tasks(&self) {
-        for i in 0..self.task_count {
+        for _i in 0..self.task_count {
             let flops = self.ctx.gen_range(1..=3000) as f64;
             let cores = self.ctx.gen_range(1..=8) as u32;
             let memory = self.ctx.gen_range(1..=4) * 1024 as u64;
@@ -81,7 +80,7 @@ fn main() {
     let mut sim = Simulation::new(seed);
     let mut rand = Pcg64::seed_from_u64(seed);
     // admin context for starting master and workers
-    let mut admin = sim.create_context("admin");
+    let admin = sim.create_context("admin");
 
     let host = "host";
 
@@ -116,7 +115,7 @@ fn main() {
     admin.emit_now(Start {}, worker.borrow().id());
 
     // client context for submitting tasks
-    let mut client = Client::new(sim.create_context("client"), 100., task_count, worker.borrow().id());
+    let client = Client::new(sim.create_context("client"), 100., task_count, worker.borrow().id());
     client.run();
 
     let t = Instant::now();

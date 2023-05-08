@@ -5,13 +5,12 @@ use std::any::{type_name, TypeId};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use futures::channel::oneshot::Cancellation;
 use futures::Future;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::prelude::Distribution;
 
 use crate::async_core::shared_state::{AwaitKey, AwaitResult, DetailsKey, EventFuture, SharedState, TimerFuture};
-use crate::async_core::sync::channel::Channel;
+
 use crate::component::Id;
 use crate::event::{Event, EventData, EventId};
 use crate::state::SimulationState;

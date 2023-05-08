@@ -73,9 +73,9 @@ fn main() {
     let mut sim = Simulation::new(seed);
     let mut rand = Pcg64::seed_from_u64(seed);
     // admin context for starting master and workers
-    let mut admin = sim.create_context("admin");
+    let admin = sim.create_context("admin");
     // client context for submitting tasks
-    let mut client = sim.create_context("client");
+    let client = sim.create_context("client");
 
     // register details getter for events
     sim.register_details_getter_for::<DataTransferCompleted>(get_data_transfer_completed_details);
