@@ -168,13 +168,28 @@ impl SimulationState {
         }
     }
 
-    pub fn peek_event(&self) -> Option<&Event> {
-        let maybe_heap = self.events.peek();
-        let maybe_deque = self.ordered_events.front();
-        if maybe_heap.is_some() && (maybe_deque.is_none() || maybe_heap.unwrap() > maybe_deque.unwrap()) {
-            maybe_heap
-        } else {
-            maybe_deque
+    pub fn peek_event(&mut self) -> Option<&Event> {
+        loop {
+            let maybe_heap = self.events.peek();
+            let maybe_deque = self.ordered_events.front();
+            let heap_event_id = if let Some(event) = maybe_heap { event.id } else { 0 };
+            let deque_event_id = if let Some(event) = maybe_deque { event.id } else { 0 };
+
+            if maybe_heap.is_some() && (maybe_deque.is_none() || maybe_heap.unwrap() > maybe_deque.unwrap()) {
+                if self.canceled_events.remove(&heap_event_id) {
+                    self.events.pop().unwrap();
+                } else {
+                    return self.events.peek();
+                }
+            } else if maybe_deque.is_some() {
+                if self.canceled_events.remove(&deque_event_id) {
+                    self.ordered_events.pop_front().unwrap();
+                } else {
+                    return self.ordered_events.front();
+                }
+            } else {
+                return None;
+            }
         }
     }
 

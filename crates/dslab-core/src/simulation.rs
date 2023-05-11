@@ -375,33 +375,28 @@ impl Simulation {
                 return true;
             }
 
-            let sim_state = self.sim_state.borrow_mut();
-            let next_timer = sim_state.peek_timer();
-            let next_event = sim_state.peek_event();
-
-            match (next_timer, next_event) {
-                (None, None) => false,
-                (_, None) => {
-                    drop(sim_state);
-                    self.process_timer();
-                    true
-                }
-                (None, _) => {
-                    drop(sim_state);
-                    self.process_event();
-                    true
-                }
-                _ => {
-                    if next_timer.unwrap().time <= next_event.unwrap().time {
-                        drop(sim_state);
-                        self.process_timer();
-                    } else {
-                        drop(sim_state);
-                        self.process_event();
-                    }
-                    true
-                }
+            if self.sim_state.borrow_mut().peek_timer().is_none() && self.sim_state.borrow_mut().peek_event().is_none() {
+                return false;
             }
+            if self.sim_state.borrow_mut().peek_timer().is_none() {
+                self.process_event();
+                return true;
+            }
+            if self.sim_state.borrow_mut().peek_event().is_none() {
+                self.process_timer();
+                return true;
+            }
+
+            let next_timer_time = self.sim_state.borrow_mut().peek_timer().unwrap().time;
+            let next_event_time = self.sim_state.borrow_mut().peek_event().unwrap().time;
+
+            if next_timer_time <= next_event_time {
+                self.process_timer();
+            } else {
+                self.process_event();
+            }
+
+            true
         }
 
         fn process_event(&mut self) -> bool {
@@ -469,7 +464,7 @@ impl Simulation {
         /// ctx.async_detailed_handle_event::<T>(from, details)
         ///
         /// # Example
-        /// ```rust
+        ///
         ///
         /// pub struct TaskCompleted {
         ///     request_id: u64
@@ -483,7 +478,7 @@ impl Simulation {
         ///
         /// let sim = Simulation::new(42);
         /// sim.register_details_getter_for::<TaskCompleted>(get_task_completed_details);
-        /// ```
+        ///
         pub fn register_details_getter_for<T: EventData>(&self, details_getter: fn(&dyn EventData) -> DetailsKey) {
             self.sim_state
                 .borrow_mut()
@@ -669,7 +664,7 @@ impl Simulation {
     pub fn step_until_time(&mut self, time: f64) -> bool {
         let mut result = true;
         loop {
-            if let Some(event) = self.sim_state.borrow().peek_event() {
+            if let Some(event) = self.sim_state.borrow_mut().peek_event() {
                 if event.time > time {
                     break;
                 }

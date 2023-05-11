@@ -669,9 +669,9 @@ impl SimulationContext {
         /// wait for the given timeout.
         ///
         /// Example:
-        /// ```rust
+        ///
         /// ctx.async_wait_for(5.).await;
-        /// ```
+        ///
         pub fn async_wait_for(&self, timeout: f64) -> TimerFuture {
             self.sim_state.borrow_mut().wait_for(self.id, timeout)
         }
@@ -679,9 +679,9 @@ impl SimulationContext {
 
         /// async wait for any event of type T from src component with timeout
         /// Example:
-        /// ```rust
+        ///
         /// let event_result = ctx.async_wait_for_event::<PingMessage>(pinger_id, timeout).await;
-        /// ```
+        ///
         pub fn async_wait_for_event<T>(&self, src: Id, timeout: f64) -> EventFuture<T>
         where
             T: EventData,
@@ -691,9 +691,9 @@ impl SimulationContext {
 
         /// async wait for any event of type T from src component without timeout
         /// Example:
-        /// ```rust
+        ///
         /// let (event, data) = ctx.async_handle_event::<PingMessage>(pinger_id).await;
-        /// ```
+        ///
         pub async fn async_handle_event<T>(&self, src: Id) -> (Event, T)
         where
             T: EventData,
@@ -737,10 +737,10 @@ impl SimulationContext {
     async_details_core! {
         /// async wait for event of type T from src component with details flag and timeout
         /// Example:
-        /// ```rust
-        /// let request_id = disk.send_data_read_request(...);
+        ///
+        /// let request_id = disk.send_data_read_request(/* some args */);
         /// let event_result = ctx.async_detailed_wait_for_event::<DataReadCompleted>(disk_id, request_id, timeout).await;
-        /// ```
+        ///
         pub fn async_detailed_wait_for_event<T>(&self, src: Id, details: DetailsKey, timeout: f64) -> EventFuture<T>
         where
             T: EventData,
@@ -750,10 +750,10 @@ impl SimulationContext {
 
         /// async wait for event of type T from src component with details flag without timeout
         /// Example:
-        /// ```rust
+        ///
         /// let request_id = disk.send_data_read_request(...);
         /// let (event, data) = ctx.async_detailed_handle_event::<DataReadCompleted>(disk_id, request_id).await;
-        /// ```
+        ///
         pub async fn async_detailed_handle_event<T>(&self, src: Id, details: DetailsKey) -> (Event, T)
         where
             T: EventData,
@@ -775,8 +775,6 @@ impl SimulationContext {
         ///
         /// # Example
         ///
-        /// ```rust
-        ///
         /// pub struct TaskCompleted {
         ///     request_id: u64
         ///     some_other_data: u64
@@ -790,7 +788,7 @@ impl SimulationContext {
         /// let sim = Simulation::new(42);
         /// let ctx = sim.create_context("host")
         /// ctx.register_details_getter_for::<TaskCompleted>(get_task_completed_details);
-        /// ```
+        ///
         pub fn register_details_getter_for<T: EventData>(&self, details_getter: fn(&dyn EventData) -> DetailsKey) {
             self.sim_state
                 .borrow_mut()

@@ -22,7 +22,7 @@ use crate::process::TaskInfo;
 #[clap(author, version, about, long_about = None)]
 struct Args {
     /// Number of tasks (>= 1)
-    #[clap(long, default_value_t = 5)]
+    #[clap(long, default_value_t = 10)]
     tasks_count: u32,
 }
 
