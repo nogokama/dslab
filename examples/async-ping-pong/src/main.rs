@@ -1,21 +1,21 @@
+mod process;
+
 use std::collections::BTreeSet;
 use std::io::Write;
 use std::time::Instant;
 
 use clap::Parser;
-use dslab_core::Simulation;
+use env_logger::Builder;
+use sugars::{rc, refcell};
 
+use dslab_core::Simulation;
 use dslab_network::{
     constant_bandwidth_model::ConstantBandwidthNetwork, network::Network,
     shared_bandwidth_model::SharedBandwidthNetwork,
 };
-use env_logger::Builder;
-use process::NetworkProcess;
-use sugars::{rc, refcell};
 
 use crate::process::{Process, StartMessage};
-
-mod process;
+use process::NetworkProcess;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
