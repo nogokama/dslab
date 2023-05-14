@@ -5,25 +5,31 @@ use std::rc::Rc;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-use futures::Future;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::distributions::{Alphanumeric, DistString};
 use rand::prelude::*;
 use rand_pcg::Pcg64;
 
-use crate::async_core::shared_state::{
-    AwaitEventSharedState, AwaitKey, AwaitResultSetter, DetailsKey, EmptyData, TimerFuture,
-};
+async_core! {
+    use futures::Future;
+    use crate::async_core::shared_state::{
+        AwaitEventSharedState, EmptyData, TimerFuture,
+    };
+}
+
+use crate::async_core::shared_state::{AwaitKey, AwaitResultSetter, DetailsKey};
 use crate::async_core::task::Task;
 use crate::async_core::timer::{Timer, TimerId};
 use crate::component::Id;
 use crate::event::{Event, EventData, EventId};
 use crate::log::log_incorrect_event;
+use crate::{async_core, async_details_core};
 
 /// Epsilon to compare floating point values for equality.
 pub const EPSILON: f64 = 1e-12;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct SimulationState {
     clock: f64,
     rand: Pcg64,
@@ -249,31 +255,6 @@ impl SimulationState {
         output
     }
 
-    pub fn peek_timer(&mut self) -> Option<&Timer> {
-        loop {
-            if let Some(timer) = self.timers.peek() {
-                if !self.canceled_timers.remove(&timer.id) {
-                    return Some(timer);
-                }
-            } else {
-                return None;
-            }
-        }
-    }
-
-    pub fn next_timer(&mut self) -> Option<Timer> {
-        loop {
-            if let Some(timer) = self.timers.pop() {
-                if !self.canceled_timers.remove(&timer.id) {
-                    self.clock = timer.time;
-                    return Some(timer);
-                }
-            } else {
-                return None;
-            }
-        }
-    }
-
     pub fn cancel_component_timers(&mut self, component_id: Id) {
         for timer in self.timers.iter() {
             if timer.component_id == component_id {
@@ -282,61 +263,91 @@ impl SimulationState {
         }
     }
 
-    pub(crate) fn has_handler_on_key(&self, key: &AwaitKey) -> bool {
-        self.awaiters.contains_key(key)
-    }
-
-    pub(crate) fn set_event_for_await_key(&mut self, key: &AwaitKey, event: Event) -> bool {
-        if !self.awaiters.contains_key(key) {
-            return false;
+    async_core! {
+        pub fn peek_timer(&mut self) -> Option<&Timer> {
+            loop {
+                if let Some(timer) = self.timers.peek() {
+                    if !self.canceled_timers.remove(&timer.id) {
+                        return Some(timer);
+                    }
+                } else {
+                    return None;
+                }
+            }
         }
 
-        let shared_state = self.awaiters.remove(key).unwrap();
+        pub fn next_timer(&mut self) -> Option<Timer> {
+            loop {
+                if let Some(timer) = self.timers.pop() {
+                    if !self.canceled_timers.remove(&timer.id) {
+                        self.clock = timer.time;
+                        return Some(timer);
+                    }
+                } else {
+                    return None;
+                }
+            }
+        }
 
-        shared_state.borrow_mut().set_ok_completed_with_event(event);
 
-        true
+        pub(crate) fn has_handler_on_key(&self, key: &AwaitKey) -> bool {
+            self.awaiters.contains_key(key)
+        }
+
+        pub(crate) fn set_event_for_await_key(&mut self, key: &AwaitKey, event: Event) -> bool {
+            if !self.awaiters.contains_key(key) {
+                return false;
+            }
+
+            let shared_state = self.awaiters.remove(key).unwrap();
+
+            shared_state.borrow_mut().set_ok_completed_with_event(event);
+
+            true
+        }
+
+        pub fn spawn(&mut self, future: impl Future<Output = ()>) {
+            let task = Arc::new(Task::new(future, self.task_sender.clone()));
+
+            self.task_sender.send(task).expect("channel is closed");
+        }
+
+        pub fn wait_for(&mut self, component_id: Id, timeout: f64) -> TimerFuture {
+            let state = Rc::new(RefCell::new(AwaitEventSharedState::<EmptyData>::default()));
+            let timer = self.get_timer(component_id, self.time() + timeout, state.clone());
+
+            self.timers.push(timer);
+
+            TimerFuture { state }
+        }
+
+        pub(crate) fn add_timer_on_state(
+            &mut self,
+            component_id: Id,
+            timeout: f64,
+            state: Rc<RefCell<dyn AwaitResultSetter>>,
+        ) {
+            let timer = self.get_timer(component_id, self.time() + timeout, state);
+            self.timers.push(timer);
+        }
+
+        pub(crate) fn add_awaiter_handler(&mut self, key: AwaitKey, state: Rc<RefCell<dyn AwaitResultSetter>>) {
+            self.awaiters.insert(key, state);
+        }
+
+        fn get_timer(&mut self, component_id: Id, time: f64, state: Rc<RefCell<dyn AwaitResultSetter>>) -> Timer {
+            self.timer_count += 1;
+            Timer::new(self.timer_count, component_id, time, state)
+        }
+
+        pub fn get_details_getter(&self, type_id: TypeId) -> Option<fn(&dyn EventData) -> DetailsKey> {
+            self.details_getters.get(&type_id).copied()
+        }
     }
 
-    pub fn spawn(&mut self, future: impl Future<Output = ()>) {
-        let task = Arc::new(Task::new(future, self.task_sender.clone()));
-
-        self.task_sender.send(task).expect("channel is closed");
-    }
-
-    pub fn wait_for(&mut self, component_id: Id, timeout: f64) -> TimerFuture {
-        let state = Rc::new(RefCell::new(AwaitEventSharedState::<EmptyData>::default()));
-        let timer = self.get_timer(component_id, self.time() + timeout, state.clone());
-
-        self.timers.push(timer);
-
-        TimerFuture { state }
-    }
-
-    pub(crate) fn add_timer_on_state(
-        &mut self,
-        component_id: Id,
-        timeout: f64,
-        state: Rc<RefCell<dyn AwaitResultSetter>>,
-    ) {
-        let timer = self.get_timer(component_id, self.time() + timeout, state);
-        self.timers.push(timer);
-    }
-
-    pub(crate) fn add_awaiter_handler(&mut self, key: AwaitKey, state: Rc<RefCell<dyn AwaitResultSetter>>) {
-        self.awaiters.insert(key, state);
-    }
-
-    pub fn register_details_getter_for<T: EventData>(&mut self, details_getter: fn(&dyn EventData) -> DetailsKey) {
-        self.details_getters.insert(TypeId::of::<T>(), details_getter);
-    }
-
-    pub fn get_details_getter(&self, type_id: TypeId) -> Option<fn(&dyn EventData) -> DetailsKey> {
-        self.details_getters.get(&type_id).copied()
-    }
-
-    fn get_timer(&mut self, component_id: Id, time: f64, state: Rc<RefCell<dyn AwaitResultSetter>>) -> Timer {
-        self.timer_count += 1;
-        Timer::new(self.timer_count, component_id, time, state)
+    async_details_core! {
+        pub fn register_details_getter_for<T: EventData>(&mut self, details_getter: fn(&dyn EventData) -> DetailsKey) {
+            self.details_getters.insert(TypeId::of::<T>(), details_getter);
+        }
     }
 }

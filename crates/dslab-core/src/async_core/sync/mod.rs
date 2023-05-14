@@ -1,3 +1,7 @@
 //! go-like channel for message-passing
 
-pub mod channel;
+use crate::async_details_core;
+
+async_details_core! {
+    pub mod channel;
+}

@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::mpsc::channel;
 
-use futures::Future;
 use log::Level::Trace;
 use log::{debug, log_enabled, trace};
 use rand::distributions::uniform::{SampleRange, SampleUniform};
@@ -13,12 +12,20 @@ use rand::prelude::Distribution;
 use serde_json::json;
 use serde_type_name::type_name;
 
+async_core! {
+    use futures::Future;
+    use crate::async_core::shared_state::AwaitKey;
+}
+
+async_details_core! {
+    use crate::async_core::shared_state::DetailsKey;
+    use crate::async_core::sync::channel::Channel;
+    use crate::event::EventData;
+}
+
 use crate::async_core::executor::Executor;
-use crate::async_core::shared_state::{AwaitKey, DetailsKey};
-use crate::async_core::sync::channel::Channel;
 use crate::component::Id;
 use crate::context::SimulationContext;
-use crate::event::EventData;
 use crate::handler::EventHandler;
 use crate::log::log_undelivered_event;
 use crate::state::SimulationState;
@@ -31,6 +38,7 @@ pub struct Simulation {
     names: Rc<RefCell<Vec<String>>>,
     handlers: Vec<Option<Rc<RefCell<dyn EventHandler>>>>,
 
+    #[allow(dead_code)]
     executor: Executor,
 }
 
@@ -383,14 +391,17 @@ impl Simulation {
                 return true;
             }
 
-            if self.sim_state.borrow_mut().peek_timer().is_none() && self.sim_state.borrow_mut().peek_event().is_none() {
+            let has_timer = self.sim_state.borrow_mut().peek_timer().is_some();
+            let has_event = self.sim_state.borrow_mut().peek_event().is_some();
+
+            if !has_timer && !has_event {
                 return false;
             }
-            if self.sim_state.borrow_mut().peek_timer().is_none() {
+            if !has_timer {
                 self.process_event();
                 return true;
             }
-            if self.sim_state.borrow_mut().peek_event().is_none() {
+            if !has_event {
                 self.process_timer();
                 return true;
             }

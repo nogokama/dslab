@@ -1,15 +1,25 @@
 //! Accessing simulation from components.
 
+#[allow(unused_imports)]
 use core::panic;
-use std::any::{type_name, TypeId};
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use futures::Future;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::prelude::Distribution;
 
-use crate::async_core::shared_state::{AwaitEventSharedState, AwaitKey, AwaitResult, DetailsKey, EventFuture};
+async_core! {
+    use std::any::TypeId;
+    use futures::Future;
+
+    use crate::async_core::shared_state::{AwaitEventSharedState, AwaitKey, AwaitResult, EventFuture};
+}
+
+async_details_core! {
+    use std::any::type_name;
+    use crate::async_core::shared_state::DetailsKey;
+}
 
 use crate::component::Id;
 use crate::event::{Event, EventData, EventId};
@@ -675,7 +685,8 @@ impl SimulationContext {
                 panic!("timeout must be a positive value");
             }
 
-            self.sim_state.borrow_mut().wait_for(self.id, timeout).await;
+            let future = self.sim_state.borrow_mut().wait_for(self.id, timeout);
+            future.await;
         }
 
 

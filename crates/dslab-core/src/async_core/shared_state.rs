@@ -1,7 +1,7 @@
 //! Shared state and event notification
 
 use crate::event::EventData;
-use crate::{Event, Id};
+use crate::{async_core, async_details_core, Event, Id};
 use serde::Serialize;
 
 use std::any::{Any, TypeId};
@@ -155,6 +155,7 @@ impl Future for TimerFuture {
 }
 
 #[derive(Hash, PartialEq, Eq, Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct AwaitKey {
     pub from: Id,
     pub to: Id,
@@ -163,39 +164,43 @@ pub(crate) struct AwaitKey {
 }
 
 impl AwaitKey {
-    pub fn new<T: EventData>(from: Id, to: Id) -> Self {
-        Self {
-            from,
-            to,
-            msg_type: TypeId::of::<T>(),
-            details: 0,
+    async_core! {
+        pub fn new<T: EventData>(from: Id, to: Id) -> Self {
+            Self {
+                from,
+                to,
+                msg_type: TypeId::of::<T>(),
+                details: 0,
+            }
+        }
+
+        pub fn new_by_ref(from: Id, to: Id, data: &dyn EventData) -> Self {
+            Self {
+                from,
+                to,
+                msg_type: data.type_id(),
+                details: 0,
+            }
         }
     }
 
-    pub fn new_by_ref(from: Id, to: Id, data: &dyn EventData) -> Self {
-        Self {
-            from,
-            to,
-            msg_type: data.type_id(),
-            details: 0,
+    async_details_core! {
+        pub fn new_with_details<T: EventData>(from: Id, to: Id, details: DetailsKey) -> Self {
+            Self {
+                from,
+                to,
+                msg_type: TypeId::of::<T>(),
+                details,
+            }
         }
-    }
 
-    pub fn new_with_details<T: EventData>(from: Id, to: Id, details: DetailsKey) -> Self {
-        Self {
-            from,
-            to,
-            msg_type: TypeId::of::<T>(),
-            details,
-        }
-    }
-
-    pub fn new_with_details_by_ref(from: Id, to: Id, data: &dyn EventData, details: DetailsKey) -> Self {
-        Self {
-            from,
-            to,
-            msg_type: data.type_id(),
-            details,
+        pub fn new_with_details_by_ref(from: Id, to: Id, data: &dyn EventData, details: DetailsKey) -> Self {
+            Self {
+                from,
+                to,
+                msg_type: data.type_id(),
+                details,
+            }
         }
     }
 }
