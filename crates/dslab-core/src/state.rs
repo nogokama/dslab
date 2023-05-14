@@ -289,7 +289,6 @@ impl SimulationState {
             }
         }
 
-
         pub(crate) fn has_handler_on_key(&self, key: &AwaitKey) -> bool {
             self.awaiters.contains_key(key)
         }

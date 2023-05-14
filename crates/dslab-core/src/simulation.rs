@@ -368,12 +368,12 @@ impl Simulation {
     /// ```
     ///
     /// Definition of step is different for different build features of dslab-core.
-    pub fn step(&mut self) -> bool {
+    pub fn step(&self) -> bool {
         self.step_inner()
     }
 
     async_disabled! {
-        fn step_inner(&mut self) -> bool {
+        fn step_inner(&self) -> bool {
             let event_opt = self.sim_state.borrow_mut().next_event();
             match event_opt {
                 Some(event) => {
@@ -386,7 +386,7 @@ impl Simulation {
     }
 
     async_core! {
-        fn step_inner(&mut self) -> bool {
+        fn step_inner(&self) -> bool {
             if self.process_task() {
                 return true;
             }
@@ -418,7 +418,7 @@ impl Simulation {
             true
         }
 
-        fn process_event(&mut self) -> bool {
+        fn process_event(&self) -> bool {
             let event = self.sim_state.borrow_mut().next_event().unwrap();
 
             let await_key = self.get_await_key(&event);
@@ -452,7 +452,7 @@ impl Simulation {
             self.executor.process_task()
         }
 
-        fn process_timer(&mut self) {
+        fn process_timer(&self) {
             let next_timer = self.sim_state.borrow_mut().next_timer().unwrap();
 
             next_timer.state.as_ref().borrow_mut().set_completed();
@@ -680,21 +680,63 @@ impl Simulation {
     /// assert_eq!(sim.time(), 3.6);
     /// assert!(!status); // there are no more events
     /// ```
+    ///
+    /// Implementation is feature-defined
     pub fn step_until_time(&mut self, time: f64) -> bool {
-        let mut result = true;
-        loop {
-            if let Some(event) = self.sim_state.borrow_mut().peek_event() {
-                if event.time > time {
+        self.step_until_time_inner(time)
+    }
+
+    async_disabled! {
+        fn step_until_time_inner(&mut self, time: f64) -> bool {
+            let mut result = true;
+            loop {
+                if let Some(event) = self.sim_state.borrow_mut().peek_event() {
+                    if event.time > time {
+                        break;
+                    }
+                } else {
+                    result = false;
                     break;
                 }
-            } else {
-                result = false;
-                break;
+                self.step();
             }
-            self.step();
+            self.sim_state.borrow_mut().set_time(time);
+            result
         }
-        self.sim_state.borrow_mut().set_time(time);
-        result
+    }
+
+    async_core! {
+        fn step_until_time_inner(&mut self, time: f64) -> bool {
+            let mut result;
+            loop {
+                while self.process_task() {}
+
+                result = false;
+                let mut step = false;
+
+                if let Some(event) = self.sim_state.borrow_mut().peek_event() {
+                    result = true;
+                    if event.time <= time {
+                        step = true;
+                    }
+                }
+
+                if let Some(timer) = self.sim_state.borrow_mut().peek_timer() {
+                    result = true;
+                    if timer.time <= time {
+                        step = true;
+                    }
+                }
+
+                if step {
+                    self.step();
+                } else {
+                    break;
+                }
+            }
+            self.sim_state.borrow_mut().set_time(time);
+            result
+        }
     }
 
     /// Returns a random float in the range _[0, 1)_
