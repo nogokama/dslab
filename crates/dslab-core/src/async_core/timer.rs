@@ -6,12 +6,14 @@ use crate::Id;
 
 use super::shared_state::AwaitResultSetter;
 
-type TimerId = u64;
+/// Timer Identifier
+pub type TimerId = u64;
 
 /// Timer will set the given `state` as completed at time
 #[derive(Clone)]
 pub struct Timer {
-    id: TimerId,
+    /// unique identifier of timer
+    pub id: TimerId,
     /// id of simulation component the timer was set to
     pub component_id: Id,
     /// the time when Timer will be fired

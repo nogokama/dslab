@@ -289,6 +289,14 @@ impl Simulation {
     {
         let id = self.lookup_id(name.as_ref());
         self.handlers[id as usize] = None;
+
+        // cancel pending events related to the removed component
+        let id = self.lookup_id(name.as_ref());
+        self.cancel_events(|e| e.src == id || e.dest == id);
+
+        // cancel pending timers related to the removed component
+        self.sim_state.borrow_mut().cancel_component_timers(id);
+
         debug!(
             target: "simulation",
             "[{:.3} {} simulation] Removed handler: {}",

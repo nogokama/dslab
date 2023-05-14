@@ -15,7 +15,7 @@ use crate::async_core::shared_state::{
     AwaitEventSharedState, AwaitKey, AwaitResultSetter, DetailsKey, EmptyData, TimerFuture,
 };
 use crate::async_core::task::Task;
-use crate::async_core::timer::Timer;
+use crate::async_core::timer::{Timer, TimerId};
 use crate::component::Id;
 use crate::event::{Event, EventData, EventId};
 use crate::log::log_incorrect_event;
@@ -36,6 +36,7 @@ pub struct SimulationState {
     details_getters: HashMap<TypeId, fn(&dyn EventData) -> DetailsKey>,
 
     timers: BinaryHeap<Timer>,
+    canceled_timers: HashSet<TimerId>,
     timer_count: u64,
 
     task_sender: Sender<Arc<Task>>,
@@ -53,6 +54,7 @@ impl SimulationState {
             awaiters: HashMap::new(),
             details_getters: HashMap::new(),
             timers: BinaryHeap::new(),
+            canceled_timers: HashSet::new(),
             timer_count: 0,
 
             task_sender,
@@ -247,17 +249,37 @@ impl SimulationState {
         output
     }
 
-    pub fn peek_timer(&self) -> Option<&Timer> {
-        self.timers.peek()
+    pub fn peek_timer(&mut self) -> Option<&Timer> {
+        loop {
+            if let Some(timer) = self.timers.peek() {
+                if !self.canceled_timers.remove(&timer.id) {
+                    return Some(timer);
+                }
+            } else {
+                return None;
+            }
+        }
     }
 
     pub fn next_timer(&mut self) -> Option<Timer> {
-        if let Some(timer) = self.timers.pop() {
-            self.clock = timer.time;
-            return Some(timer);
+        loop {
+            if let Some(timer) = self.timers.pop() {
+                if !self.canceled_timers.remove(&timer.id) {
+                    self.clock = timer.time;
+                    return Some(timer);
+                }
+            } else {
+                return None;
+            }
         }
+    }
 
-        None
+    pub fn cancel_component_timers(&mut self, component_id: Id) {
+        for timer in self.timers.iter() {
+            if timer.component_id == component_id {
+                self.canceled_timers.insert(timer.id);
+            }
+        }
     }
 
     pub(crate) fn has_handler_on_key(&self, key: &AwaitKey) -> bool {
