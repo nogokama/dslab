@@ -49,4 +49,6 @@ jobs:
     - name: Run linter
       run: cargo clippy -- -D warnings
     - name: Run tests
-      run: cargo test --verbose
+      run: | 
+        cargo install cargo-all-features 
+        cargo test-all-features --verbose
