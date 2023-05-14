@@ -9,9 +9,7 @@ use futures::Future;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::prelude::Distribution;
 
-use crate::async_core::shared_state::{
-    AwaitEventSharedState, AwaitKey, AwaitResult, DetailsKey, EventFuture, TimerFuture,
-};
+use crate::async_core::shared_state::{AwaitEventSharedState, AwaitKey, AwaitResult, DetailsKey, EventFuture};
 
 use crate::component::Id;
 use crate::event::{Event, EventData, EventId};
@@ -672,8 +670,12 @@ impl SimulationContext {
         ///
         /// ctx.async_wait_for(5.).await;
         ///
-        pub fn async_wait_for(&self, timeout: f64) -> TimerFuture {
-            self.sim_state.borrow_mut().wait_for(self.id, timeout)
+        pub async fn async_wait_for(&self, timeout: f64) {
+            if timeout < 0.{
+                panic!("timeout must be a positive value");
+            }
+
+            self.sim_state.borrow_mut().wait_for(self.id, timeout).await;
         }
 
 
@@ -682,11 +684,15 @@ impl SimulationContext {
         ///
         /// let event_result = ctx.async_wait_for_event::<PingMessage>(pinger_id, timeout).await;
         ///
-        pub fn async_wait_for_event<T>(&self, src: Id, timeout: f64) -> EventFuture<T>
+        pub async fn async_wait_for_event<T>(&self, src: Id, timeout: f64) -> AwaitResult<T>
         where
             T: EventData,
         {
-            self.async_wait_for_event_to(src, self.id, timeout)
+            if timeout < 0.{
+                panic!("timeout must be a positive value");
+            }
+
+            self.async_wait_for_event_to(src, self.id, timeout).await
         }
 
         /// async wait for any event of type T from src component without timeout
@@ -725,7 +731,7 @@ impl SimulationContext {
             T: EventData,
         {
             if self.sim_state.borrow().get_details_getter(TypeId::of::<T>()).is_some() {
-                panic!("try to async handle event that has detailed key handling, use async details handlers")
+                panic!("try to async handle event that has detailed key handling, use async details handlers");
             }
 
             let await_key = AwaitKey::new::<T>(src, dst);
@@ -741,11 +747,15 @@ impl SimulationContext {
         /// let request_id = disk.send_data_read_request(/* some args */);
         /// let event_result = ctx.async_detailed_wait_for_event::<DataReadCompleted>(disk_id, request_id, timeout).await;
         ///
-        pub fn async_detailed_wait_for_event<T>(&self, src: Id, details: DetailsKey, timeout: f64) -> EventFuture<T>
+        pub async fn async_detailed_wait_for_event<T>(&self, src: Id, details: DetailsKey, timeout: f64) -> AwaitResult<T>
         where
             T: EventData,
         {
-            self.async_detailed_wait_for_event_to(src, self.id, details, timeout)
+            if timeout < 0.{
+                panic!("timeout must be a positive value");
+            }
+
+            self.async_detailed_wait_for_event_to(src, self.id, details, timeout).await
         }
 
         /// async wait for event of type T from src component with details flag without timeout
