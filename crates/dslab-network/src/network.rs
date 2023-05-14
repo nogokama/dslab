@@ -41,6 +41,10 @@ impl Network {
         }
     }
 
+    pub fn id(&self) -> Id {
+        self.ctx.id()
+    }
+
     pub fn add_node(&mut self, node_id: &str, local_network: Box<dyn NetworkModel>) {
         self.topology.borrow_mut().add_node(node_id, local_network)
     }

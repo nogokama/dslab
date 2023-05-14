@@ -49,4 +49,6 @@ jobs:
     - name: Run linter
       run: cargo clippy -- -D warnings
     - name: Run tests
-      run: cargo test --verbose
+      run: |
+        cargo test --verbose
+        cargo test --package dslab-core --all-features

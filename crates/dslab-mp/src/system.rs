@@ -76,10 +76,6 @@ impl System {
         self.sim.remove_handler(node_name);
         node.borrow_mut().crash();
 
-        // cancel pending events from the crashed node
-        let node_id = self.sim.lookup_id(node_name);
-        self.sim.cancel_events(|e| e.src == node_id);
-
         t!(format!("{:>9.3} - node crashed: {}", self.sim.time(), node_name).red());
     }
 

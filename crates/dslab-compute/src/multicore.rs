@@ -164,6 +164,9 @@ impl Compute {
             ctx,
         }
     }
+    pub fn id(&self) -> Id {
+        self.ctx.id()
+    }
 
     pub fn speed(&self) -> f64 {
         self.speed
