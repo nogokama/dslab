@@ -990,6 +990,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dslab-scheduling"
+version = "0.1.0"
+dependencies = [
+ "dslab-compute",
+ "dslab-core",
+ "env_logger 0.9.3",
+ "log 0.4.17",
+ "serde",
+ "sugars",
+]
+
+[[package]]
 name = "dslab-storage"
 version = "0.1.0"
 dependencies = [
@@ -3448,6 +3460,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "713cfb06c7059f3588fb8044c0fad1d09e3c01d225e25b9220dbfdcf16dbb1b3"
 dependencies = [
  "windows-sys 0.42.0",
+]
+
+[[package]]
+name = "scheduling-simple"
+version = "0.1.0"
+dependencies = [
+ "clap 3.2.23",
+ "dslab-core",
+ "dslab-network",
+ "dslab-scheduling",
+ "env_logger 0.9.3",
+ "log 0.4.17",
+ "serde",
+ "sugars",
 ]
 
 [[package]]
