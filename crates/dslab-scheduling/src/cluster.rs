@@ -10,6 +10,7 @@ use serde::Serialize;
 
 use crate::{
     event_generator::{TaskInfo, TaskRequest},
+    logger::{log_compute_load, log_memory_load},
     machine::Machine,
     proxy::Proxy,
     storage::TaskInfoStorage,
@@ -137,12 +138,36 @@ impl EventHandler for Cluster {
             Cancel { task_id } => {
                 self.cancel_task(task_id)
             }
-            CompStarted { id: _, cores: _ } => {}
+            CompStarted { id: _, cores: _ } => {
+                let machine_id = *self.compute_id_to_machine_id.get(&event.src).unwrap();
+                let compute = self.machines.get(&machine_id).unwrap();
+
+                log_compute_load(
+                    self.ctx.time(),
+                    machine_id,
+                    1. - compute.borrow().cores_available() as f64 / compute.borrow().cores_total() as f64,
+                );
+                log_memory_load(
+                    self.ctx.time(),
+                    machine_id,
+                    1. - compute.borrow().memory_available() as f64 / compute.borrow().memory_total() as f64,
+                );
+            }
             CompFinished { id } => {
                 let machine_id = *self.compute_id_to_machine_id.get(&event.src).unwrap();
                 let compute = self.machines.get(&machine_id).unwrap();
-                let task_id = *self.computation_id_to_task_id.get(&id).unwrap();
+                log_compute_load(
+                    self.ctx.time(),
+                    machine_id,
+                    1. - compute.borrow().cores_available() as f64 / compute.borrow().cores_total() as f64,
+                );
+                log_memory_load(
+                    self.ctx.time(),
+                    machine_id,
+                    1. - compute.borrow().memory_available() as f64 / compute.borrow().memory_total() as f64,
+                );
 
+                let task_id = *self.computation_id_to_task_id.get(&id).unwrap();
                 self.tasks.get_mut(&machine_id).unwrap().remove(&task_id);
 
                 self.ctx.emit_now(

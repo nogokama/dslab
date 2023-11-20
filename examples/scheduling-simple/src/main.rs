@@ -1,4 +1,5 @@
 mod round_robin;
+mod tetris;
 
 use dslab_core::{cast, EventHandler, Id, Simulation, SimulationContext};
 use dslab_scheduling::{
@@ -16,6 +17,7 @@ use std::{
     io::Write,
 };
 use sugars::{rc, refcell};
+use tetris::TetrisScheduler;
 
 fn main() {
     Builder::from_default_env()
@@ -24,12 +26,13 @@ fn main() {
 
     let mut sim = Simulation::new(42);
 
-    let generator = RandomEventGenerator::new(sim.create_context("generator"), 20000);
+    let generator = RandomEventGenerator::new(sim.create_context("generator"), 2000);
 
     let scheduler_context = sim.create_context("scheduler");
 
     let mut cluster_sim = ClusterSchedulingSimulation::new(sim, generator);
 
     let cluster_id = cluster_sim.get_cluster_id();
-    cluster_sim.run(RoundRobinScheduler::new(cluster_id, scheduler_context));
+    cluster_sim.run(TetrisScheduler::new(cluster_id, scheduler_context));
+    // cluster_sim.run(RoundRobinScheduler::new(cluster_id, scheduler_context));
 }

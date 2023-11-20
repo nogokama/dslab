@@ -74,5 +74,7 @@ impl<G: EventGenerator> ClusterSchedulingSimulation<G> {
 
         // TODO for long simulation make a while loop
         self.sim.step_until_no_events();
+
+        println!("SIMULATION FINISHED AT: {}", self.sim.time());
     }
 }
