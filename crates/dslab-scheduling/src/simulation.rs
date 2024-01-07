@@ -18,6 +18,7 @@ pub struct ClusterSchedulingSimulation<G: EventGenerator> {
 
     cluster: Rc<RefCell<Cluster>>,
     proxy: Rc<RefCell<Proxy>>,
+    // TODO: monitoring service connected to proxy & cluster
 }
 
 impl<G: EventGenerator> ClusterSchedulingSimulation<G> {
