@@ -1,0 +1,11 @@
+---
+
+workload:
+    - type: Random 
+      options: 
+        cpu_min: 4
+        cpu_max: 4
+        memory_min: 1000 
+        memory_max: 5000
+        
+      

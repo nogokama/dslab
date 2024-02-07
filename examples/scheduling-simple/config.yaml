@@ -1,0 +1,38 @@
+--- 
+workload:
+  - type: Random
+    options: 
+      jobs_count: 1000
+      cpu_min: 4
+      cpu_max: 8
+      memory_min: 1
+      memory_max: 5
+      delay_min: 0 
+      delay_max: 10
+      load_min: 1000
+      load_max: 4000
+  - type: Random
+    options: 
+      jobs_count: 1000
+      cpu_min: 1
+      cpu_max: 4
+      memory_min: 4
+      memory_max: 7
+      delay_min: 0 
+      delay_max: 10
+      load_min: 1000
+      load_max: 4000
+      
+
+hosts: 
+  - count: 4
+    cpus: 30
+    cpu_speed: 1
+    memory: 120
+    name_prefix: m
+  - count: 4
+    cpus: 60
+    cpu_speed: 1
+    memory: 60
+    name_prefix: c
+

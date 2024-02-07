@@ -1,0 +1,38 @@
+{
+    "jobs": [
+        {
+            "id": 1,
+            "submit_time": 10.12,
+            "wall_time_limit": 3000,
+            "resources": {
+                "nodes": 1,
+                "cpu_cores_per_node": 2,
+                "memory_per_node": 4e9
+            },
+            "profile": {
+                "type": "cpu-burn-homogeneous",
+                "args": {
+                    "flops": 1e9
+                }
+            }
+        },
+        {
+            "id": 2,
+            "submit_time": 15.2,
+            "wall_time_limit": 10000,
+            "resources": {
+                "nodes": 3,
+                "cpu_cores_per_node": 4,
+                "memory_per_node": 10e9
+            },
+            "profile": {
+                "type": "master-workers-simple",
+                "args": {
+                    "master_flops": 1e9,
+                    "worker_flops": 5e9,
+                    "data_transfer_bytes": 1e9
+                }
+            }
+        }
+    ]
+}

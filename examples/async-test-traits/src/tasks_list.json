@@ -1,0 +1,20 @@
+{
+    "tasks": [
+        {
+            "type": "TestTask",
+            "id": 1,
+            "time": 10.0
+        },
+        {
+            "type": "ProdTask",
+            "id": 2,
+            "time": 20.0,
+            "extra_time": 10.0
+        },
+        {
+            "type": "TestTask",
+            "id": 3,
+            "time": 100.0
+        }
+    ]
+}

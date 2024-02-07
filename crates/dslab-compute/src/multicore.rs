@@ -73,6 +73,9 @@ pub enum FailReason {
         /// Requested amount of memory.
         requested_memory: u64,
     },
+    AllocationNotFound {
+        allocation_id: u64,
+    },
 }
 
 #[derive(Debug)]
@@ -105,6 +108,18 @@ pub struct CompRequest {
     pub min_cores: u32,
     /// Maximum number of used cores.
     pub max_cores: u32,
+    /// Defines the dependence of parallel speedup on the number of used cores.
+    pub cores_dependency: CoresDependency,
+    /// Id of simulation component to inform about the computation progress.
+    pub requester: Id,
+}
+
+#[derive(Clone, Serialize)]
+pub struct CompAllocationRequest {
+    /// Total computation size.
+    pub flops: f64,
+    /// Id of the allocation.
+    pub allocation_id: u64,
     /// Defines the dependence of parallel speedup on the number of used cores.
     pub cores_dependency: CoresDependency,
     /// Id of simulation component to inform about the computation progress.
@@ -205,6 +220,9 @@ pub struct Compute {
     memory_available: u64,
     computations: HashMap<u64, RunningComputation>,
     allocations: HashMap<Id, Allocation>,
+
+    allocations_by_id: HashMap<u64, Allocation>,
+
     ctx: SimulationContext,
 }
 
@@ -219,6 +237,7 @@ impl Compute {
             memory_available: memory,
             computations: HashMap::new(),
             allocations: HashMap::new(),
+            allocations_by_id: HashMap::new(),
             ctx,
         }
     }
@@ -274,6 +293,24 @@ impl Compute {
         self.ctx.emit_self_now(request)
     }
 
+    /// Starts computation with given parameters and returns computation id on a specified allocation.
+    pub fn run_on_allocation(
+        &mut self,
+        flops: f64,
+        allocation_id: u64,
+        cores_dependency: CoresDependency,
+        requester: Id,
+    ) -> u64 {
+        let request = CompAllocationRequest {
+            flops,
+            allocation_id,
+            cores_dependency,
+            requester,
+        };
+
+        self.ctx.emit_self_now(request)
+    }
+
     /// Requests resource allocation with given parameters and returns allocation id.
     pub fn allocate(&mut self, cores: u32, memory: u64, requester: Id) -> u64 {
         let request = AllocationRequest {
@@ -289,6 +326,12 @@ impl Compute {
             allocation: Allocation::new(cores, memory),
             requester,
         };
+        self.ctx.emit_self_now(request)
+    }
+
+    pub fn deallocate_by_id(&mut self, allocation_id: u64, requester: Id) -> u64 {
+        let allocation = self.allocations_by_id.remove(&allocation_id).unwrap();
+        let request = DeallocationRequest { allocation, requester };
         self.ctx.emit_self_now(request)
     }
 }
@@ -331,6 +374,33 @@ impl EventHandler for Compute {
                         .insert(event.id, RunningComputation::new(cores, memory, requester));
                 }
             }
+            CompAllocationRequest {
+                flops,
+                allocation_id,
+                cores_dependency,
+                requester,
+            } => {
+                let allocation_opt = self.allocations_by_id.get(&allocation_id);
+
+                if let Some(allocation) = allocation_opt {
+                    let cores = allocation.cores;
+
+                    let speedup = cores_dependency.speedup(cores);
+
+                    let compute_time = flops / self.speed / speedup;
+
+                    self.ctx.emit_now(CompStarted { id: event.id, cores }, requester);
+                    self.ctx.emit(CompFinished { id: event.id }, requester, compute_time);
+                } else {
+                    self.ctx.emit_now(
+                        CompFailed {
+                            id: event.id,
+                            reason: FailReason::AllocationNotFound { allocation_id },
+                        },
+                        requester,
+                    );
+                }
+            }
             CompFinished { id } => {
                 let running_computation = self
                     .computations
@@ -363,6 +433,10 @@ impl EventHandler for Compute {
                     current_allocation.memory += allocation.memory;
                     self.cores_available -= allocation.cores;
                     self.memory_available -= allocation.memory;
+
+                    // TODO makogon
+                    self.allocations_by_id.insert(event.id, allocation.clone());
+
                     self.ctx.emit(AllocationSuccess { id: event.id }, requester, 0.);
                 }
             }
