@@ -28,7 +28,7 @@ pub struct RandomWorkloadGenerator {
 
 impl RandomWorkloadGenerator {
     pub fn from_options(options: &HashMap<String, String>) -> Self {
-        serde_yaml::from_str(&serde_yaml::to_string(options).unwrap()).unwrap()
+        serde_yaml::from_str(&serde_yaml::to_string(options).unwrap().replace("\"", "")).unwrap()
     }
 }
 

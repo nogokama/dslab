@@ -19,14 +19,12 @@ pub struct ClusterHost {
     pub compute: Rc<RefCell<Compute>>,
     pub network: Option<Rc<RefCell<Network>>>,
     pub disk: Option<Rc<RefCell<Disk>>>,
-    pub id: Id,
     shared_info_storage: Rc<RefCell<SharedInfoStorage>>,
     ctx: SimulationContext,
 }
 
 impl ClusterHost {
     pub fn new(
-        id: Id,
         compute: Rc<RefCell<Compute>>,
         network: Option<Rc<RefCell<Network>>>,
         disk: Option<Rc<RefCell<Disk>>>,
@@ -39,8 +37,11 @@ impl ClusterHost {
             disk,
             shared_info_storage,
             ctx,
-            id,
         }
+    }
+
+    pub fn id(&self) -> Id {
+        self.ctx.id()
     }
 
     pub async fn sleep(&self, time: f64) {
@@ -113,12 +114,12 @@ impl ClusterHost {
     fn log_compute_load(&self) {
         log_compute_load(
             self.ctx.time(),
-            self.id,
+            self.ctx.id(),
             1. - self.compute.borrow().cores_available() as f64 / self.compute.borrow().cores_total() as f64,
         );
         log_memory_load(
             self.ctx.time(),
-            self.id,
+            self.ctx.id(),
             1. - self.compute.borrow().memory_available() as f64 / self.compute.borrow().memory_total() as f64,
         );
     }

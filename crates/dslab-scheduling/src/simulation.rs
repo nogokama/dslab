@@ -7,6 +7,7 @@ use dslab_network::{
     models::{ConstantBandwidthNetworkModel, SharedBandwidthNetworkModel},
     Network, NetworkModel,
 };
+use dslab_storage::disk::DiskBuilder;
 use sugars::{boxed, rc, refcell};
 
 use crate::{
@@ -126,16 +127,18 @@ impl ClusterSchedulingSimulation {
 
     pub fn build_host(
         &mut self,
-        host_config: HostConfig,
+        mut host_config: HostConfig,
         network_config: Option<&NetworkConfig>,
         network: Option<Rc<RefCell<Network>>>,
     ) {
         let cluster = self.cluster.borrow();
-        let proxy_id = self.proxy.borrow().get_id();
-        let ctx = self.sim.create_context("cluster");
 
-        let host_name = format!("host-{}", host_config.id);
-        let compute_name = format!("compute-{}", host_config.id);
+        let host_name = format!("host-{}", host_config.name);
+        let host_ctx = self.sim.create_context(&host_name);
+
+        host_config.id = host_ctx.id();
+
+        let compute_name = format!("compute-{}", host_config.name);
         let compute_ctx = self.sim.create_context(&compute_name);
         let compute = rc!(refcell!(Compute::new(
             host_config.cpu_speed.unwrap_or(1000.),
@@ -144,7 +147,9 @@ impl ClusterSchedulingSimulation {
             compute_ctx
         )));
 
-        if let Some(network) = network {
+        self.sim.add_handler(&compute_name, compute.clone());
+
+        if let Some(network) = network.clone() {
             network.borrow_mut().add_node(
                 host_name,
                 boxed!(SharedBandwidthNetworkModel::new(
@@ -158,13 +163,30 @@ impl ClusterSchedulingSimulation {
             );
         }
 
+        let disk = if let Some(disk_cap) = host_config.disk_capacity {
+            let disk_name = format!("disk-{}", host_config.name);
+            let disk_ctx = self.sim.create_context(&disk_name);
+
+            let disk = rc!(refcell!(DiskBuilder::simple(
+                disk_cap,
+                host_config.disk_read_bw.unwrap_or(1.),
+                host_config.disk_write_bw.unwrap_or(1.),
+            )
+            .build(disk_ctx)));
+
+            self.sim.add_handler(&disk_name, disk.clone());
+
+            Some(disk)
+        } else {
+            None
+        };
+
         let host = rc!(ClusterHost::new(
-            host_config.id,
             compute,
-            None,
-            None,
+            network,
+            disk,
             self.shared_storage.clone(),
-            ctx
+            host_ctx
         ));
 
         cluster.add_host(host_config.clone(), host.clone());

@@ -83,10 +83,8 @@ impl Cluster {
     }
 
     pub fn add_host(&self, host_config: HostConfig, host: Rc<ClusterHost>) {
-        self.hosts_configs
-            .borrow_mut()
-            .insert(host_config.id, host_config.clone());
-        self.hosts.borrow_mut().insert(host_config.id, host);
+        self.hosts_configs.borrow_mut().insert(host.id(), host_config.clone());
+        self.hosts.borrow_mut().insert(host.id(), host);
     }
 
     pub fn get_hosts(&self) -> Vec<HostConfig> {
@@ -107,7 +105,7 @@ impl Cluster {
     async fn track_task_process(&self, hosts: Vec<Rc<ClusterHost>>, request: JobRequest) {
         let processes = self.allocate_processes(&hosts, &request).await;
 
-        let hosts_ids = processes.iter().map(|p| p.host.id).collect::<Vec<_>>();
+        let hosts_ids = processes.iter().map(|p| p.host.id()).collect::<Vec<_>>();
 
         log_info!(self.ctx, "start job: {}", request.id.unwrap());
         request.profile.run(&processes).await;
@@ -137,7 +135,7 @@ impl Cluster {
 
             let process_id = *self.process_cnt.borrow();
 
-            self.shared_info_storage.borrow_mut().set_host_id(process_id, host.id);
+            self.shared_info_storage.borrow_mut().set_host_id(process_id, host.id());
 
             *self.process_cnt.borrow_mut() += 1;
 
