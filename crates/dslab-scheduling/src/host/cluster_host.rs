@@ -8,10 +8,8 @@ use dslab_storage::events::{DataReadCompleted, DataReadFailed, DataWriteComplete
 use dslab_storage::storage::{Storage, StorageInfo};
 use futures::{select, FutureExt};
 
-use crate::{
-    logger::{log_compute_load, log_memory_load},
-    storage::SharedInfoStorage,
-};
+use crate::logger::{log_compute_load, log_memory_load};
+use crate::storage::ProcessHostStorage;
 
 use super::process::ProcessId;
 
@@ -19,7 +17,7 @@ pub struct ClusterHost {
     pub compute: Rc<RefCell<Compute>>,
     pub network: Option<Rc<RefCell<Network>>>,
     pub disk: Option<Rc<RefCell<Disk>>>,
-    shared_info_storage: Rc<RefCell<SharedInfoStorage>>,
+    shared_info_storage: Rc<RefCell<ProcessHostStorage>>,
     ctx: SimulationContext,
 }
 
@@ -28,7 +26,7 @@ impl ClusterHost {
         compute: Rc<RefCell<Compute>>,
         network: Option<Rc<RefCell<Network>>>,
         disk: Option<Rc<RefCell<Disk>>>,
-        shared_info_storage: Rc<RefCell<SharedInfoStorage>>,
+        shared_info_storage: Rc<RefCell<ProcessHostStorage>>,
         ctx: SimulationContext,
     ) -> ClusterHost {
         ClusterHost {
