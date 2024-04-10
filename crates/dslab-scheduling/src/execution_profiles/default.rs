@@ -7,7 +7,7 @@ use serde::Deserialize;
 
 use crate::host::process::HostProcessInstance;
 
-use super::ExecutionProfile;
+use crate::execution_profiles::profile::ExecutionProfile;
 
 #[derive(Deserialize)]
 pub struct CpuBurnHomogenous {
@@ -25,8 +25,39 @@ impl ExecutionProfile for CpuBurnHomogenous {
         .await;
     }
 
-    fn get_name(&self) -> String {
+    fn get_name() -> String {
         "cpu-burn-homogenous".to_string()
+    }
+
+    fn default() -> Self {
+        CpuBurnHomogenous { flops: 1.0 }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct CommunicationHomogenous {
+    pub size: f64,
+}
+
+#[async_trait(?Send)]
+impl ExecutionProfile for CommunicationHomogenous {
+    async fn run(self: Rc<Self>, processes: &Vec<HostProcessInstance>) {
+        let mut futures = vec![];
+        for i in 0..processes.len() {
+            for j in 0..processes.len() {
+                if i != j {
+                    futures.push(processes[i].transfer_data(self.size, processes[j].id));
+                }
+            }
+        }
+    }
+
+    fn get_name() -> String {
+        "communication-homogenous".to_string()
+    }
+
+    fn default() -> Self {
+        CommunicationHomogenous { size: 1.0 }
     }
 }
 
@@ -55,7 +86,15 @@ impl ExecutionProfile for MasterWorkers {
             .await;
     }
 
-    fn get_name(&self) -> String {
+    fn get_name() -> String {
         "master-workers-simple".to_string()
+    }
+
+    fn default() -> Self {
+        MasterWorkers {
+            master_flops: 1.0,
+            worker_flops: 1.0,
+            data_transfer_bytes: 1.0,
+        }
     }
 }

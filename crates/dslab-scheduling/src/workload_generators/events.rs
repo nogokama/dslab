@@ -1,10 +1,10 @@
 use std::rc::Rc;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-use crate::execution_profiles::ExecutionProfile;
+use crate::execution_profiles::profile::ExecutionProfile;
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Deserialize)]
 pub struct JobRequest {
     pub id: Option<u64>,
     pub time: f64,
@@ -14,7 +14,7 @@ pub struct JobRequest {
     pub wall_time_limit: Option<f64>,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ResourceRequirements {
     pub nodes_count: u32,
     pub cpu_per_node: u32,

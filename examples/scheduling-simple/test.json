@@ -1,0 +1,20 @@
+[
+    {
+        "id": 1,
+        "profile": "test_profile"
+    },
+    {
+        "id": 2,
+        "profile": {
+            "name": "test_profile",
+            "args": {
+                "arg1": "value1",
+                "arg2": "value2"
+            }
+        }
+    },
+    {
+        "id": 3,
+        "profile": "another_profile"
+    }
+]

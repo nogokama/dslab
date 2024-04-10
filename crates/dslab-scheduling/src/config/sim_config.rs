@@ -97,7 +97,7 @@ pub struct SchedulerConfig {
 pub struct ClusterWorkloadConfig {
     pub r#type: String,
     pub path: Option<String>,
-    pub options: Option<HashMap<String, String>>,
+    pub options: Option<serde_yaml::Value>,
 }
 
 /// Represents simulation configuration.

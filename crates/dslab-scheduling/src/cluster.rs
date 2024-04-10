@@ -14,11 +14,8 @@ use serde::Serialize;
 use sugars::{rc, refcell};
 
 use crate::{
-    cluster_events::HostAdded,
     config::sim_config::HostConfig,
-    host::{self, cluster_host::ClusterHost, process::HostProcessInstance},
-    logger::{log_compute_load, log_memory_load},
-    proxy::Proxy,
+    host::{cluster_host::ClusterHost, process::HostProcessInstance},
     storage::SharedInfoStorage,
     workload_generators::events::JobRequest,
 };
