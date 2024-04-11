@@ -9,9 +9,7 @@ use crate::host::process::HostProcessInstance;
 pub trait ExecutionProfile {
     async fn run(self: Rc<Self>, processes: &Vec<HostProcessInstance>);
 
-    fn get_name() -> String;
-
-    fn default() -> Self;
+    fn get_name(&self) -> String;
 }
 
 #[derive(Serialize, Deserialize, Debug)]

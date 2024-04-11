@@ -25,12 +25,8 @@ impl ExecutionProfile for CpuBurnHomogenous {
         .await;
     }
 
-    fn get_name() -> String {
+    fn get_name(&self) -> String {
         "cpu-burn-homogenous".to_string()
-    }
-
-    fn default() -> Self {
-        CpuBurnHomogenous { flops: 1.0 }
     }
 }
 
@@ -52,12 +48,8 @@ impl ExecutionProfile for CommunicationHomogenous {
         }
     }
 
-    fn get_name() -> String {
+    fn get_name(&self) -> String {
         "communication-homogenous".to_string()
-    }
-
-    fn default() -> Self {
-        CommunicationHomogenous { size: 1.0 }
     }
 }
 
@@ -86,15 +78,7 @@ impl ExecutionProfile for MasterWorkers {
             .await;
     }
 
-    fn get_name() -> String {
+    fn get_name(&self) -> String {
         "master-workers-simple".to_string()
-    }
-
-    fn default() -> Self {
-        MasterWorkers {
-            master_flops: 1.0,
-            worker_flops: 1.0,
-            data_transfer_bytes: 1.0,
-        }
     }
 }

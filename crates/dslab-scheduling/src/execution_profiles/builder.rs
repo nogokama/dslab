@@ -46,7 +46,8 @@ impl ProfileBuilder {
             match profile {
                 ProfileDefinition::Simple(profile_name) => {
                     let constructor = self.constructors.get(&profile_name).unwrap();
-                    self.constructors.insert(name.clone(), constructor);
+                    self.constructors
+                        .insert(name.clone(), Box::new(move |json| constructor(json)));
                 }
                 ProfileDefinition::Detailed { r#type, args } => {
                     let constructor = self.constructors.get(&r#type).unwrap();

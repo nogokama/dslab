@@ -14,7 +14,7 @@ use crate::{
     cluster::Cluster,
     cluster_events::HostAdded,
     config::sim_config::{GroupHostConfig, HostConfig, NetworkConfig, SimulationConfig},
-    host::cluster_host::ClusterHost,
+    host::{cluster_host::ClusterHost, storage::ProcessHostStorage},
     proxy::Proxy,
     scheduler::Scheduler,
     storage::SharedInfoStorage,
@@ -30,6 +30,7 @@ pub struct ClusterSchedulingSimulation {
     cluster: Rc<RefCell<Cluster>>,
     proxy: Rc<RefCell<Proxy>>,
     shared_storage: Rc<RefCell<SharedInfoStorage>>,
+    host_process_storage: Rc<RefCell<ProcessHostStorage>>,
     // TODO: monitoring service connected to proxy & cluster
 }
 
@@ -40,9 +41,15 @@ impl ClusterSchedulingSimulation {
         network_opt: Option<Rc<RefCell<Network>>>,
     ) -> ClusterSchedulingSimulation {
         let shared_storage = rc!(refcell!(SharedInfoStorage::new()));
+        let host_process_storage = rc!(refcell!(ProcessHostStorage::new()));
+
         let cluster_ctx = sim.create_context("cluster");
         let cluster_id = cluster_ctx.id();
-        let cluster = rc!(refcell!(Cluster::new(cluster_ctx, shared_storage.clone())));
+        let cluster = rc!(refcell!(Cluster::new(
+            cluster_ctx,
+            shared_storage.clone(),
+            host_process_storage.clone()
+        )));
         sim.add_handler("cluster", cluster.clone());
 
         let proxy_ctx = sim.create_context("proxy");
@@ -63,6 +70,7 @@ impl ClusterSchedulingSimulation {
             cluster,
             proxy,
             shared_storage,
+            host_process_storage,
         };
 
         cluster_simulation.register_key_getters();
@@ -185,7 +193,7 @@ impl ClusterSchedulingSimulation {
             compute,
             network,
             disk,
-            self.shared_storage.clone(),
+            self.host_process_storage.clone(),
             host_ctx
         ));
 

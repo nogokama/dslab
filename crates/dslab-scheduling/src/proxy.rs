@@ -38,6 +38,7 @@ impl EventHandler for Proxy {
         cast!(match event.data {
             JobRequest {
                 id,
+                name,
                 resources,
                 time,
                 profile,
@@ -47,6 +48,7 @@ impl EventHandler for Proxy {
 
                 let request = JobRequest {
                     id,
+                    name,
                     resources,
                     time,
                     profile,

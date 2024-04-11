@@ -15,7 +15,7 @@ use sugars::{rc, refcell};
 
 use crate::{
     config::sim_config::HostConfig,
-    host::{cluster_host::ClusterHost, process::HostProcessInstance},
+    host::{cluster_host::ClusterHost, process::HostProcessInstance, storage::ProcessHostStorage},
     storage::SharedInfoStorage,
     workload_generators::events::JobRequest,
 };
@@ -50,6 +50,7 @@ pub(crate) struct Cluster {
     enabled_hosts: RefCell<HashSet<Id>>,
 
     shared_info_storage: Rc<RefCell<SharedInfoStorage>>,
+    host_process_storage: Rc<RefCell<ProcessHostStorage>>,
 
     scheduler_id: Id,
     ctx: SimulationContext,
@@ -58,12 +59,17 @@ pub(crate) struct Cluster {
 }
 
 impl Cluster {
-    pub(crate) fn new(ctx: SimulationContext, shared_info_storage: Rc<RefCell<SharedInfoStorage>>) -> Cluster {
+    pub(crate) fn new(
+        ctx: SimulationContext,
+        shared_info_storage: Rc<RefCell<SharedInfoStorage>>,
+        host_process_storage: Rc<RefCell<ProcessHostStorage>>,
+    ) -> Cluster {
         Cluster {
             hosts: refcell!(HashMap::new()),
             hosts_configs: refcell!(HashMap::new()),
             enabled_hosts: refcell!(HashSet::new()),
             shared_info_storage,
+            host_process_storage,
 
             scheduler_id: u32::MAX, // must be set later
             ctx,
@@ -132,7 +138,9 @@ impl Cluster {
 
             let process_id = *self.process_cnt.borrow();
 
-            self.shared_info_storage.borrow_mut().set_host_id(process_id, host.id());
+            self.host_process_storage
+                .borrow_mut()
+                .set_host_id(process_id, host.id());
 
             *self.process_cnt.borrow_mut() += 1;
 
@@ -155,7 +163,7 @@ impl Cluster {
                 .deallocate_by_id(process.compute_allocation_id, self.ctx.id());
             self.ctx.recv_event_by_key::<DeallocationSuccess>(deallocation_id).await;
 
-            self.shared_info_storage.borrow_mut().remove_process(process.id);
+            self.host_process_storage.borrow_mut().remove_process(process.id);
         }
     }
 

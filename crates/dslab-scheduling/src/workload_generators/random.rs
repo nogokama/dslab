@@ -42,6 +42,7 @@ impl WorkloadGenerator for RandomWorkloadGenerator {
         for id in 0..self.jobs_count as u64 {
             let job = JobRequest {
                 id: None,
+                name: None,
                 time,
                 resources: ResourceRequirements {
                     nodes_count: 1,

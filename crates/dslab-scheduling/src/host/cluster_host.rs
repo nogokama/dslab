@@ -9,9 +9,9 @@ use dslab_storage::storage::{Storage, StorageInfo};
 use futures::{select, FutureExt};
 
 use crate::logger::{log_compute_load, log_memory_load};
-use crate::storage::ProcessHostStorage;
 
 use super::process::ProcessId;
+use super::storage::ProcessHostStorage;
 
 pub struct ClusterHost {
     pub compute: Rc<RefCell<Compute>>,
