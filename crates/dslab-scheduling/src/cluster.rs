@@ -110,9 +110,19 @@ impl Cluster {
 
         let hosts_ids = processes.iter().map(|p| p.host.id()).collect::<Vec<_>>();
 
-        log_info!(self.ctx, "start job: {}", request.id.unwrap());
-        request.profile.run(&processes).await;
-        log_info!(self.ctx, "finish job: {}", request.id.unwrap());
+        log_info!(
+            self.ctx,
+            "start job: {}, profile: {}",
+            request.id.unwrap(),
+            request.profile.clone().as_ref().name()
+        );
+        request.profile.clone().run(&processes).await;
+        log_info!(
+            self.ctx,
+            "finish job: {}, profile: {}",
+            request.id.unwrap(),
+            request.profile.clone().as_ref().name()
+        );
 
         self.deallocate_processes(processes).await;
 

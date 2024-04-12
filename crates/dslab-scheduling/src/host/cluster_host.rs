@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use dslab_compute::multicore::{CompFinished, CompStarted, Compute, CoresDependency};
-use dslab_core::{cast, EventHandler, Id, SimulationContext};
+use dslab_core::{cast, log_debug, EventHandler, Id, SimulationContext};
 use dslab_network::{models::shared, DataTransferCompleted, Network};
 use dslab_storage::disk::Disk;
 use dslab_storage::events::{DataReadCompleted, DataReadFailed, DataWriteCompleted, DataWriteFailed};
@@ -52,6 +52,7 @@ impl ClusterHost {
                 .borrow_mut()
                 .run_on_allocation(flops, compute_allocation_id, cores_dependency, self.ctx.id());
 
+        log_debug!(self.ctx, "running flops: id={}, flops={}", req_id, flops);
         self.ctx.recv_event_by_key::<CompStarted>(req_id).await;
 
         self.log_compute_load();
@@ -59,6 +60,7 @@ impl ClusterHost {
         self.ctx.recv_event_by_key::<CompFinished>(req_id).await;
 
         self.log_compute_load();
+        log_debug!(self.ctx, "completed flops: id={}, flops={}", req_id, flops);
     }
 
     pub async fn transfer_data(&self, size: f64, dst_process: ProcessId) {

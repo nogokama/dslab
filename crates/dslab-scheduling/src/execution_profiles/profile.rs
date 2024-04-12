@@ -8,13 +8,9 @@ use crate::host::process::HostProcessInstance;
 #[async_trait(?Send)]
 pub trait ExecutionProfile {
     async fn run(self: Rc<Self>, processes: &Vec<HostProcessInstance>);
-
-    fn get_name(&self) -> String;
+    fn name(&self) -> String;
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(untagged)]
-pub enum ProfileDefinition {
-    Simple(String),
-    Detailed { r#type: String, args: serde_json::Value },
+pub trait NameTrait {
+    fn get_name() -> String;
 }

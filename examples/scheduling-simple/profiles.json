@@ -1,0 +1,14 @@
+{
+    "simple": {
+        "type": "cpu-burn-homogenous",
+        "args": {
+            "flops": 1000
+        }
+    },
+    "hard": {
+        "type": "cpu-burn-homogenous",
+        "args": {
+            "flops": 1000000
+        }
+    }
+}

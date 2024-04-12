@@ -14,6 +14,7 @@ use crate::{
     cluster::Cluster,
     cluster_events::HostAdded,
     config::sim_config::{GroupHostConfig, HostConfig, NetworkConfig, SimulationConfig},
+    execution_profiles::builder::ProfileBuilder,
     host::{cluster_host::ClusterHost, storage::ProcessHostStorage},
     proxy::Proxy,
     scheduler::Scheduler,
@@ -31,6 +32,8 @@ pub struct ClusterSchedulingSimulation {
     proxy: Rc<RefCell<Proxy>>,
     shared_storage: Rc<RefCell<SharedInfoStorage>>,
     host_process_storage: Rc<RefCell<ProcessHostStorage>>,
+
+    profile_builder: ProfileBuilder,
     // TODO: monitoring service connected to proxy & cluster
 }
 
@@ -71,6 +74,8 @@ impl ClusterSchedulingSimulation {
             proxy,
             shared_storage,
             host_process_storage,
+
+            profile_builder: ProfileBuilder::new(),
         };
 
         cluster_simulation.register_key_getters();

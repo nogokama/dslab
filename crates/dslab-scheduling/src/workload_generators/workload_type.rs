@@ -5,9 +5,12 @@ use std::{collections::HashMap, str::FromStr};
 use log::warn;
 use serde::{Deserialize, Serialize};
 
-use crate::config::{options::parse_config_value, sim_config::ClusterWorkloadConfig};
+use crate::{
+    config::{options::parse_config_value, sim_config::ClusterWorkloadConfig},
+    execution_profiles::builder::ProfileBuilder,
+};
 
-use super::{generator::WorkloadGenerator, random::RandomWorkloadGenerator};
+use super::{generator::WorkloadGenerator, native::NativeWorkloadGenerator, random::RandomWorkloadGenerator};
 
 /// Holds supported VM dataset types.
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -37,7 +40,7 @@ impl FromStr for WorkloadType {
 
 pub fn workload_resolver(config: &ClusterWorkloadConfig) -> Box<dyn WorkloadGenerator> {
     let workload_type = WorkloadType::from_str(&config.r#type).unwrap();
-    let options = &config.options;
+    let options = config.options.clone();
     let path = config.path.clone();
 
     match workload_type {
@@ -47,6 +50,13 @@ pub fn workload_resolver(config: &ClusterWorkloadConfig) -> Box<dyn WorkloadGene
         WorkloadType::Google => unimplemented!(),
         WorkloadType::Alibaba => unimplemented!(),
         WorkloadType::SWF => unimplemented!(),
-        WorkloadType::Native => unimplemented!(),
+        WorkloadType::Native => Box::new(NativeWorkloadGenerator::new(
+            path.expect("Native workload path is required"),
+            options
+                .unwrap()
+                .get("profile_path")
+                .map(|f| f.as_str().unwrap().to_string()),
+            ProfileBuilder::new(),
+        )),
     }
 }

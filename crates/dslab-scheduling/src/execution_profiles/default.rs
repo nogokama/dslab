@@ -9,6 +9,8 @@ use crate::host::process::HostProcessInstance;
 
 use crate::execution_profiles::profile::ExecutionProfile;
 
+use super::profile::NameTrait;
+
 #[derive(Deserialize)]
 pub struct CpuBurnHomogenous {
     pub flops: f64,
@@ -24,8 +26,13 @@ impl ExecutionProfile for CpuBurnHomogenous {
         )
         .await;
     }
+    fn name(&self) -> String {
+        Self::get_name()
+    }
+}
 
-    fn get_name(&self) -> String {
+impl NameTrait for CpuBurnHomogenous {
+    fn get_name() -> String {
         "cpu-burn-homogenous".to_string()
     }
 }
@@ -47,8 +54,13 @@ impl ExecutionProfile for CommunicationHomogenous {
             }
         }
     }
+    fn name(&self) -> String {
+        Self::get_name()
+    }
+}
 
-    fn get_name(&self) -> String {
+impl NameTrait for CommunicationHomogenous {
+    fn get_name() -> String {
         "communication-homogenous".to_string()
     }
 }
@@ -77,8 +89,13 @@ impl ExecutionProfile for MasterWorkers {
             .run_flops(self.master_flops, CoresDependency::Linear)
             .await;
     }
+    fn name(&self) -> String {
+        Self::get_name()
+    }
+}
 
-    fn get_name(&self) -> String {
-        "master-workers-simple".to_string()
+impl NameTrait for MasterWorkers {
+    fn get_name() -> String {
+        "master-workers".to_string()
     }
 }
