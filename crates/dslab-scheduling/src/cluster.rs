@@ -138,7 +138,7 @@ impl Cluster {
     async fn allocate_processes(&self, hosts: &Vec<Rc<ClusterHost>>, request: &JobRequest) -> Vec<HostProcessInstance> {
         let mut processes = Vec::new();
         for host in hosts.iter() {
-            let allocation_id = host.compute.borrow_mut().allocate(
+            let allocation_id = host.compute.borrow_mut().allocate_managed(
                 request.resources.cpu_per_node,
                 request.resources.memory_per_node,
                 self.ctx.id(),
@@ -170,7 +170,7 @@ impl Cluster {
                 .host
                 .compute
                 .borrow_mut()
-                .deallocate_by_id(process.compute_allocation_id, self.ctx.id());
+                .deallocate_managed(process.compute_allocation_id, self.ctx.id());
             self.ctx.recv_event_by_key::<DeallocationSuccess>(deallocation_id).await;
 
             self.host_process_storage.borrow_mut().remove_process(process.id);

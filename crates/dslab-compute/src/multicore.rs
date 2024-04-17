@@ -2,13 +2,14 @@
 
 use std::collections::HashMap;
 
+use dslab_models::throughput_sharing::{FairThroughputSharingModel, ThroughputSharingModel};
 use serde::Serialize;
 
-use dslab_core::cast;
 use dslab_core::component::Id;
 use dslab_core::context::SimulationContext;
 use dslab_core::event::Event;
 use dslab_core::handler::EventHandler;
+use dslab_core::{cast, EventId};
 
 // STRUCTS -------------------------------------------------------------------------------------------------------------
 
@@ -26,6 +27,13 @@ impl Allocation {
     pub fn new(cores: u32, memory: u64) -> Self {
         Self { cores, memory }
     }
+}
+
+pub struct ManagedAllocation {
+    pub cores: u32,
+    pub memory: u64,
+    pub throughput_model: FairThroughputSharingModel<RunningComputation>,
+    pub next_event: EventId,
 }
 
 /// Function from `[1, max_cores]` to `[1, +inf]` describing the dependency
@@ -78,16 +86,18 @@ pub enum FailReason {
     },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Serialize)]
 struct RunningComputation {
+    id: u64,
     cores: u32,
     memory: u64,
     requester: Id,
 }
 
 impl RunningComputation {
-    fn new(cores: u32, memory: u64, requester: Id) -> Self {
+    fn new(id: u64, cores: u32, memory: u64, requester: Id) -> Self {
         RunningComputation {
+            id,
             cores,
             memory,
             requester,
@@ -162,6 +172,30 @@ pub struct AllocationRequest {
     pub requester: Id,
 }
 
+/// Request to allocate resources.
+#[derive(Clone, Serialize)]
+pub struct ManagedAllocationRequest {
+    /// Allocated resource.
+    pub allocation: Allocation,
+    /// Id of simulation component to inform about the allocation result.
+    pub requester: Id,
+}
+
+/// Request to deallocate resources.
+#[derive(Clone, Serialize)]
+pub struct ManagedDeallocationRequest {
+    /// Allocated resource.
+    pub allocation_id: u64,
+    /// Id of simulation component to inform about the allocation result.
+    pub requester: Id,
+}
+
+#[derive(Clone, Serialize)]
+struct InternalCompFinished {
+    computation: RunningComputation,
+    allocation_id: u64,
+}
+
 /// Allocation is successful.
 #[derive(Clone, Serialize)]
 pub struct AllocationSuccess {
@@ -221,7 +255,7 @@ pub struct Compute {
     computations: HashMap<u64, RunningComputation>,
     allocations: HashMap<Id, Allocation>,
 
-    allocations_by_id: HashMap<u64, Allocation>,
+    managed_allocations: HashMap<u64, ManagedAllocation>,
 
     ctx: SimulationContext,
 }
@@ -237,7 +271,7 @@ impl Compute {
             memory_available: memory,
             computations: HashMap::new(),
             allocations: HashMap::new(),
-            allocations_by_id: HashMap::new(),
+            managed_allocations: HashMap::new(),
             ctx,
         }
     }
@@ -329,9 +363,19 @@ impl Compute {
         self.ctx.emit_self_now(request)
     }
 
-    pub fn deallocate_by_id(&mut self, allocation_id: u64, requester: Id) -> u64 {
-        let allocation = self.allocations_by_id.remove(&allocation_id).unwrap();
-        let request = DeallocationRequest { allocation, requester };
+    pub fn allocate_managed(&mut self, cores: u32, memory: u64, requester: Id) -> u64 {
+        let request = ManagedAllocationRequest {
+            allocation: Allocation::new(cores, memory),
+            requester,
+        };
+        self.ctx.emit_self_now(request)
+    }
+
+    pub fn deallocate_managed(&mut self, allocation_id: u64, requester: Id) -> u64 {
+        let request = ManagedDeallocationRequest {
+            allocation_id,
+            requester,
+        };
         self.ctx.emit_self_now(request)
     }
 }
@@ -371,7 +415,7 @@ impl EventHandler for Compute {
                     let compute_time = flops / self.speed / speedup;
                     self.ctx.emit_self(CompFinished { id: event.id }, compute_time);
                     self.computations
-                        .insert(event.id, RunningComputation::new(cores, memory, requester));
+                        .insert(event.id, RunningComputation::new(event.id, cores, memory, requester));
                 }
             }
             CompAllocationRequest {
@@ -380,17 +424,34 @@ impl EventHandler for Compute {
                 cores_dependency,
                 requester,
             } => {
-                let allocation_opt = self.allocations_by_id.get(&allocation_id);
+                let allocation_opt = self.managed_allocations.get_mut(&allocation_id);
 
                 if let Some(allocation) = allocation_opt {
                     let cores = allocation.cores;
 
                     let speedup = cores_dependency.speedup(cores);
 
-                    let compute_time = flops / self.speed / speedup;
+                    let work = flops / speedup;
 
                     self.ctx.emit_now(CompStarted { id: event.id, cores }, requester);
-                    self.ctx.emit(CompFinished { id: event.id }, requester, compute_time);
+
+                    self.ctx.cancel_event(allocation.next_event);
+
+                    allocation.throughput_model.insert(
+                        RunningComputation::new(event.id, cores, allocation.memory, requester),
+                        work,
+                        &mut self.ctx,
+                    );
+
+                    if let Some((time, computation)) = allocation.throughput_model.peek() {
+                        allocation.next_event = self.ctx.emit_self(
+                            InternalCompFinished {
+                                computation: computation.clone(),
+                                allocation_id,
+                            },
+                            time - self.ctx.time(),
+                        );
+                    }
                 } else {
                     self.ctx.emit_now(
                         CompFailed {
@@ -398,6 +459,28 @@ impl EventHandler for Compute {
                             reason: FailReason::AllocationNotFound { allocation_id },
                         },
                         requester,
+                    );
+                }
+            }
+            InternalCompFinished {
+                computation,
+                allocation_id,
+            } => {
+                let allocation = self.managed_allocations.get_mut(&allocation_id).unwrap();
+                let (_, next_computation) = allocation.throughput_model.pop().unwrap();
+                assert!(
+                    computation.id == next_computation.id,
+                    "Got unexpected InternalCompFinished event"
+                );
+                self.ctx
+                    .emit_now(CompFinished { id: computation.id }, computation.requester);
+                if let Some((time, computation)) = allocation.throughput_model.peek() {
+                    allocation.next_event = self.ctx.emit_self(
+                        InternalCompFinished {
+                            computation: computation.clone(),
+                            allocation_id,
+                        },
+                        time - self.ctx.time(),
                     );
                 }
             }
@@ -409,6 +492,53 @@ impl EventHandler for Compute {
                 self.memory_available += running_computation.memory;
                 self.cores_available += running_computation.cores;
                 self.ctx.emit(CompFinished { id }, running_computation.requester, 0.);
+            }
+            ManagedAllocationRequest { allocation, requester } => {
+                if self.memory_available < allocation.memory || self.cores_available < allocation.cores {
+                    self.ctx.emit_now(
+                        AllocationFailed {
+                            id: event.id,
+                            reason: FailReason::NotEnoughResources {
+                                available_cores: self.cores_available,
+                                available_memory: self.memory_available,
+                                requested_cores: allocation.cores,
+                                requested_memory: allocation.memory,
+                            },
+                        },
+                        requester,
+                    );
+                } else {
+                    let current_allocation = ManagedAllocation {
+                        cores: allocation.cores,
+                        memory: allocation.memory,
+                        throughput_model: FairThroughputSharingModel::with_fixed_throughput(self.speed),
+                        next_event: EventId::MAX,
+                    };
+                    self.managed_allocations.insert(event.id, current_allocation);
+                    self.cores_available -= allocation.cores;
+                    self.memory_available -= allocation.memory;
+
+                    self.ctx.emit_now(AllocationSuccess { id: event.id }, requester);
+                }
+            }
+            ManagedDeallocationRequest {
+                allocation_id,
+                requester,
+            } => {
+                let allocation_opt = self.managed_allocations.remove(&allocation_id);
+                if let Some(allocation) = allocation_opt {
+                    self.cores_available += allocation.cores;
+                    self.memory_available += allocation.memory;
+                    self.ctx.emit(DeallocationSuccess { id: event.id }, requester, 0.);
+                } else {
+                    self.ctx.emit_now(
+                        DeallocationFailed {
+                            id: event.id,
+                            reason: FailReason::AllocationNotFound { allocation_id },
+                        },
+                        requester,
+                    );
+                }
             }
             AllocationRequest { allocation, requester } => {
                 if self.memory_available < allocation.memory || self.cores_available < allocation.cores {
@@ -433,9 +563,6 @@ impl EventHandler for Compute {
                     current_allocation.memory += allocation.memory;
                     self.cores_available -= allocation.cores;
                     self.memory_available -= allocation.memory;
-
-                    // TODO makogon
-                    self.allocations_by_id.insert(event.id, allocation.clone());
 
                     self.ctx.emit(AllocationSuccess { id: event.id }, requester, 0.);
                 }
