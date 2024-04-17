@@ -103,11 +103,11 @@ pub struct ClusterWorkloadConfig {
 /// Represents simulation configuration.
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct SimulationConfig {
-    /// Used VM trace dataset.
+    /// Used trace dataset.
     pub workload: Option<Vec<ClusterWorkloadConfig>>,
     /// Configurations of physical hosts.
     pub hosts: Vec<GroupHostConfig>,
-    /// Configurations of VM schedulers.
+    /// Configurations of schedulers.
     pub schedulers: Vec<SchedulerConfig>,
     pub network: Option<NetworkConfig>,
 }

@@ -10,7 +10,7 @@ types, times, machine_ids, loads = zip(*(line.split(', ') for line in data.strip
 
 # Convert lists to appropriate data types
 times = np.array([float(time) for time in times])
-machine_ids = np.array([int(machine_id) for machine_id in machine_ids])
+machine_ids = np.array([str(machine_id) for machine_id in machine_ids])
 loads = np.array([float(load) for load in loads])
 
 # Filter data based on type (e.g., cpu)

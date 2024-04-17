@@ -22,17 +22,19 @@ workload:
       delay_max: 10
       load_min: 1000
       load_max: 4000
-      
+
 
 hosts: 
   - count: 100
     cpus: 30
     cpu_speed: 1
-    memory: 120
+    memory: 300
     name_prefix: m
-  - count: 100
-    cpus: 60
+    # host_per_rack: 10
+  - count: 50
+    cpus: 100
     cpu_speed: 1
-    memory: 60
+    memory: 300
     name_prefix: c
+    # host_per_rack: 5
 

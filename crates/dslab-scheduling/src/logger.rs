@@ -20,7 +20,7 @@ lazy_static! {
 }
 
 // Define the global function log_struct
-pub fn log_compute_load(time: f64, machine_id: Id, load: f64) {
+pub fn log_compute_load(time: f64, machine_id: &str, load: f64) {
     if let Ok(mut file) = LOG_FILE.lock() {
         if let Err(e) = writeln!(file, "cpu, {}, {}, {}", time, machine_id, load) {
             eprintln!("Error writing to file: {}", e);
@@ -30,7 +30,7 @@ pub fn log_compute_load(time: f64, machine_id: Id, load: f64) {
     }
 }
 
-pub fn log_memory_load(time: f64, machine_id: Id, load: f64) {
+pub fn log_memory_load(time: f64, machine_id: &str, load: f64) {
     if let Ok(mut file) = LOG_FILE.lock() {
         if let Err(e) = writeln!(file, "mem, {}, {}, {}", time, machine_id, load) {
             eprintln!("Error writing to file: {}", e);

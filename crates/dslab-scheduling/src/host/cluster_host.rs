@@ -114,12 +114,12 @@ impl ClusterHost {
     fn log_compute_load(&self) {
         log_compute_load(
             self.ctx.time(),
-            self.ctx.id(),
+            self.ctx.name(),
             1. - self.compute.borrow().cores_available() as f64 / self.compute.borrow().cores_total() as f64,
         );
         log_memory_load(
             self.ctx.time(),
-            self.ctx.id(),
+            self.ctx.name(),
             1. - self.compute.borrow().memory_available() as f64 / self.compute.borrow().memory_total() as f64,
         );
     }
