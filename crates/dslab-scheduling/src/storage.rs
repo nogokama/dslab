@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use dslab_core::Id;
 
-use crate::workload_generators::events::JobRequest;
+use crate::workload_generators::events::ExecutionRequest;
 
 pub struct SharedInfoStorage {
-    jobs_info: HashMap<u64, JobRequest>,
+    jobs_info: HashMap<u64, ExecutionRequest>,
 }
 
 impl SharedInfoStorage {
@@ -15,11 +15,11 @@ impl SharedInfoStorage {
         }
     }
 
-    pub fn get_job_request(&self, task_id: u64) -> JobRequest {
+    pub fn get_job_request(&self, task_id: u64) -> ExecutionRequest {
         self.jobs_info.get(&task_id).unwrap().clone()
     }
 
-    pub fn set_job_request(&mut self, task_id: u64, task_request: JobRequest) {
+    pub fn set_job_request(&mut self, task_id: u64, task_request: ExecutionRequest) {
         self.jobs_info.insert(task_id, task_request);
     }
 }

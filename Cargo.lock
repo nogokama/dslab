@@ -1004,6 +1004,7 @@ name = "dslab-scheduling"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "csv",
  "dslab-compute",
  "dslab-core",
  "dslab-network",

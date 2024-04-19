@@ -9,7 +9,7 @@ use dslab_scheduling::{
     cluster_events::HostAdded,
     config::sim_config::HostConfig,
     scheduler::{Resources, Scheduler},
-    workload_generators::events::JobRequest,
+    workload_generators::events::ExecutionRequest,
 };
 
 pub struct JobInfo {
@@ -106,7 +106,7 @@ impl EventHandler for RoundRobinScheduler {
                 );
                 self.hosts.push(host);
             }
-            JobRequest { id, resources, .. } => {
+            ExecutionRequest { id, resources, .. } => {
                 self.on_task_info(id.unwrap(), resources.cpu_per_node, resources.memory_per_node);
             }
             JobFinished { job_id, hosts } => {

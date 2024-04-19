@@ -16,6 +16,7 @@ use crate::{
     config::sim_config::{GroupHostConfig, HostConfig, NetworkConfig, SimulationConfig},
     execution_profiles::builder::ProfileBuilder,
     host::{cluster_host::ClusterHost, storage::ProcessHostStorage},
+    monitoring::Monitoring,
     proxy::Proxy,
     scheduler::Scheduler,
     storage::SharedInfoStorage,
@@ -30,6 +31,7 @@ pub struct ClusterSchedulingSimulation {
 
     cluster: Rc<RefCell<Cluster>>,
     proxy: Rc<RefCell<Proxy>>,
+    monitoring: Rc<RefCell<Monitoring>>,
     shared_storage: Rc<RefCell<SharedInfoStorage>>,
     host_process_storage: Rc<RefCell<ProcessHostStorage>>,
 
@@ -74,6 +76,8 @@ impl ClusterSchedulingSimulation {
             proxy,
             shared_storage,
             host_process_storage,
+
+            monitoring: rc!(refcell!(Monitoring::new(1))),
 
             profile_builder: ProfileBuilder::new(),
         };
@@ -199,10 +203,12 @@ impl ClusterSchedulingSimulation {
             network,
             disk,
             self.host_process_storage.clone(),
+            self.monitoring.clone(),
+            host_config.group_prefix.clone(),
             host_ctx
         ));
 
-        cluster.add_host(host_config.clone(), host.clone());
+        cluster.add_host(host_config, host);
     }
 
     pub fn run_with_custom_scheduler<T: EventHandler + Scheduler + 'static>(&mut self, scheduler: T) {

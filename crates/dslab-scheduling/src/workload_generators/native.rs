@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::execution_profiles::builder::{ProfileBuilder, ProfileDefinition};
 
 use super::{
-    events::{JobRequest, ResourceRequirements},
+    events::{ExecutionRequest, ResourceRequirements},
     generator::WorkloadGenerator,
 };
 
@@ -50,14 +50,15 @@ impl NativeWorkloadGenerator {
 }
 
 impl WorkloadGenerator for NativeWorkloadGenerator {
-    fn get_workload(&self, ctx: &SimulationContext) -> Vec<JobRequest> {
+    fn get_workload(&self, ctx: &SimulationContext) -> Vec<ExecutionRequest> {
         let workload = self
             .workload
             .iter()
-            .map(|job| JobRequest {
+            .map(|job| ExecutionRequest {
                 id: job.id,
                 name: job.name.clone(),
                 time: job.submit_time,
+                collection_id: None,
                 resources: job.resources.clone(),
                 profile: self.profile_builder.build(job.profile.clone()),
                 wall_time_limit: job.wall_time_limit,

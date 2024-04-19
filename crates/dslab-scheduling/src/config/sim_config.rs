@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct HostConfig {
     pub id: Id,
     pub name: String,
+    pub group_prefix: Option<String>,
     pub cpus: u32,
     pub memory: u64,
 
@@ -20,12 +21,14 @@ pub struct HostConfig {
 
 impl HostConfig {
     pub fn from_group_config(group: &GroupHostConfig, idx: Option<u32>) -> Self {
+        let mut group_prefix = None;
         let name = if group.count.unwrap_or(1) == 1 {
             group
                 .name
                 .clone()
                 .unwrap_or_else(|| panic!("name is required for host group with count = 1"))
         } else {
+            group_prefix = Some(group.name_prefix.clone().unwrap());
             format!(
                 "{}-{}",
                 group
@@ -38,6 +41,7 @@ impl HostConfig {
         Self {
             id: 0,
             name,
+            group_prefix,
             cpus: group.cpus,
             memory: group.memory,
             cpu_speed: group.cpu_speed,
@@ -56,6 +60,7 @@ pub struct RawSimulationConfig {
     pub schedulers: Option<Vec<SchedulerConfig>>,
     pub workload: Option<Vec<ClusterWorkloadConfig>>,
     pub newtork: Option<NetworkConfig>,
+    pub monitoring: Option<MonitoringConfig>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
@@ -100,6 +105,20 @@ pub struct ClusterWorkloadConfig {
     pub options: Option<serde_yaml::Value>,
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum MonitoringLevel {
+    None,
+    Basic,
+    Groups,
+    Detailed,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct MonitoringConfig {
+    pub level: MonitoringLevel,
+}
+
 /// Represents simulation configuration.
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct SimulationConfig {
@@ -110,6 +129,7 @@ pub struct SimulationConfig {
     /// Configurations of schedulers.
     pub schedulers: Vec<SchedulerConfig>,
     pub network: Option<NetworkConfig>,
+    pub monitoring: Option<MonitoringConfig>,
 }
 
 impl SimulationConfig {
@@ -121,11 +141,14 @@ impl SimulationConfig {
         )
         .unwrap_or_else(|_| panic!("Can't parse YAML from file {}", file_name));
 
+        println!("{:?}", raw.monitoring);
+
         Self {
             workload: raw.workload,
             hosts: raw.hosts.unwrap_or_default(),
             schedulers: raw.schedulers.unwrap_or_default(),
             network: raw.newtork,
+            monitoring: raw.monitoring,
         }
     }
 }

@@ -17,7 +17,7 @@ use crate::{
     config::sim_config::HostConfig,
     host::{cluster_host::ClusterHost, process::HostProcessInstance, storage::ProcessHostStorage},
     storage::SharedInfoStorage,
-    workload_generators::events::JobRequest,
+    workload_generators::events::ExecutionRequest,
 };
 
 #[derive(Clone, Serialize)]
@@ -105,7 +105,7 @@ impl Cluster {
         self.ctx.spawn(self.track_task_process(hosts, request));
     }
 
-    async fn track_task_process(&self, hosts: Vec<Rc<ClusterHost>>, request: JobRequest) {
+    async fn track_task_process(&self, hosts: Vec<Rc<ClusterHost>>, request: ExecutionRequest) {
         let processes = self.allocate_processes(&hosts, &request).await;
 
         let hosts_ids = processes.iter().map(|p| p.host.id()).collect::<Vec<_>>();
@@ -135,7 +135,11 @@ impl Cluster {
         );
     }
 
-    async fn allocate_processes(&self, hosts: &Vec<Rc<ClusterHost>>, request: &JobRequest) -> Vec<HostProcessInstance> {
+    async fn allocate_processes(
+        &self,
+        hosts: &Vec<Rc<ClusterHost>>,
+        request: &ExecutionRequest,
+    ) -> Vec<HostProcessInstance> {
         let mut processes = Vec::new();
         for host in hosts.iter() {
             let allocation_id = host.compute.borrow_mut().allocate_managed(

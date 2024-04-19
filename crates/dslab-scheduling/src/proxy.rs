@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use dslab_core::{cast, log_debug, EventHandler, Id, SimulationContext};
 
-use crate::{cluster_events::HostAdded, storage::SharedInfoStorage, workload_generators::events::JobRequest};
+use crate::{cluster_events::HostAdded, storage::SharedInfoStorage, workload_generators::events::ExecutionRequest};
 
 pub struct Proxy {
     jobs_scheduled_time: HashMap<u64, f64>,
@@ -36,21 +36,23 @@ impl Proxy {
 impl EventHandler for Proxy {
     fn on(&mut self, event: dslab_core::Event) {
         cast!(match event.data {
-            JobRequest {
+            ExecutionRequest {
                 id,
                 name,
                 resources,
                 time,
+                collection_id,
                 profile,
                 wall_time_limit,
             } => {
                 self.jobs_scheduled_time.insert(id.unwrap(), self.ctx.time());
 
-                let request = JobRequest {
+                let request = ExecutionRequest {
                     id,
                     name,
                     resources,
                     time,
+                    collection_id,
                     profile,
                     wall_time_limit,
                 };

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::execution_profiles::default::CpuBurnHomogenous;
 
 use super::{
-    events::{JobRequest, ResourceRequirements},
+    events::{ExecutionRequest, ResourceRequirements},
     generator::WorkloadGenerator,
 };
 
@@ -33,14 +33,14 @@ impl RandomWorkloadGenerator {
 }
 
 impl WorkloadGenerator for RandomWorkloadGenerator {
-    fn get_workload(&self, ctx: &SimulationContext) -> Vec<JobRequest> {
+    fn get_workload(&self, ctx: &SimulationContext) -> Vec<ExecutionRequest> {
         let mut workload = Vec::new();
         workload.reserve(self.jobs_count as usize);
 
         let mut time = self.start_time.unwrap_or(0.);
 
         for id in 0..self.jobs_count as u64 {
-            let job = JobRequest {
+            let job = ExecutionRequest {
                 id: None,
                 name: None,
                 time,
@@ -49,6 +49,7 @@ impl WorkloadGenerator for RandomWorkloadGenerator {
                     cpu_per_node: ctx.gen_range(self.cpu_min..=self.cpu_max),
                     memory_per_node: ctx.gen_range(self.memory_min..=self.memory_max),
                 },
+                collection_id: None,
                 wall_time_limit: None,
                 profile: Rc::new(CpuBurnHomogenous {
                     flops: ctx.gen_range(self.load_min..=self.load_max),

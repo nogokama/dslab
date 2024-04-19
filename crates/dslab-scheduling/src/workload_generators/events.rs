@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 use crate::execution_profiles::profile::ExecutionProfile;
 
 #[derive(Serialize, Clone)]
-pub struct JobRequest {
+pub struct ExecutionRequest {
     pub id: Option<u64>,
     pub name: Option<String>,
+    pub collection_id: Option<u64>,
     pub time: f64,
     pub resources: ResourceRequirements,
     #[serde(skip)]

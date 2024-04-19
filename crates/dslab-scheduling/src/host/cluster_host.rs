@@ -9,6 +9,7 @@ use dslab_storage::storage::{Storage, StorageInfo};
 use futures::{select, FutureExt};
 
 use crate::logger::{log_compute_load, log_memory_load};
+use crate::monitoring::Monitoring;
 
 use super::process::ProcessId;
 use super::storage::ProcessHostStorage;
@@ -18,6 +19,8 @@ pub struct ClusterHost {
     pub network: Option<Rc<RefCell<Network>>>,
     pub disk: Option<Rc<RefCell<Disk>>>,
     shared_info_storage: Rc<RefCell<ProcessHostStorage>>,
+    group_prefix: Option<String>,
+    monitoring: Rc<RefCell<Monitoring>>,
     ctx: SimulationContext,
 }
 
@@ -27,6 +30,8 @@ impl ClusterHost {
         network: Option<Rc<RefCell<Network>>>,
         disk: Option<Rc<RefCell<Disk>>>,
         shared_info_storage: Rc<RefCell<ProcessHostStorage>>,
+        monitoring: Rc<RefCell<Monitoring>>,
+        group_prefix: Option<String>,
         ctx: SimulationContext,
     ) -> ClusterHost {
         ClusterHost {
@@ -34,6 +39,8 @@ impl ClusterHost {
             network,
             disk,
             shared_info_storage,
+            monitoring,
+            group_prefix,
             ctx,
         }
     }
