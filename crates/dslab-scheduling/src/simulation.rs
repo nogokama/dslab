@@ -77,7 +77,9 @@ impl ClusterSchedulingSimulation {
             shared_storage,
             host_process_storage,
 
-            monitoring: rc!(refcell!(Monitoring::new(1))),
+            monitoring: rc!(refcell!(Monitoring::new(
+                config.monitoring.unwrap_or_default().compression.unwrap_or(1)
+            ))),
 
             profile_builder: ProfileBuilder::new(),
         };
@@ -168,7 +170,7 @@ impl ClusterSchedulingSimulation {
 
         if let Some(network) = network.clone() {
             network.borrow_mut().add_node(
-                host_name,
+                &host_name,
                 boxed!(SharedBandwidthNetworkModel::new(
                     host_config
                         .local_newtork_bw
@@ -207,6 +209,8 @@ impl ClusterSchedulingSimulation {
             host_config.group_prefix.clone(),
             host_ctx
         ));
+
+        self.monitoring.borrow_mut().add_host(host_name.clone(), &host_config);
 
         cluster.add_host(host_config, host);
     }

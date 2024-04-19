@@ -119,15 +119,15 @@ impl ClusterHost {
     }
 
     fn log_compute_load(&self) {
-        log_compute_load(
+        let cpu_used = self.compute.borrow().cores_total() - self.compute.borrow().cores_available();
+        let memory_used = self.compute.borrow().memory_total() - self.compute.borrow().memory_available();
+        self.monitoring.borrow_mut().update_host(
             self.ctx.time(),
             self.ctx.name(),
-            1. - self.compute.borrow().cores_available() as f64 / self.compute.borrow().cores_total() as f64,
-        );
-        log_memory_load(
-            self.ctx.time(),
-            self.ctx.name(),
-            1. - self.compute.borrow().memory_available() as f64 / self.compute.borrow().memory_total() as f64,
+            self.group_prefix.as_ref(),
+            cpu_used,
+            memory_used,
+            None,
         );
     }
 }

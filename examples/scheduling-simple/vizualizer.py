@@ -21,11 +21,13 @@ mem_indices = [i for i, t in enumerate(types) if t == 'mem']
 unique_machine_ids = np.unique(machine_ids)
 
 # Create a figure with a grid of subplots
-num_rows = len(unique_machine_ids)
+num_rows = len(unique_machine_ids) + 1 
 fig, axes = plt.subplots(num_rows, 2, figsize=(25, 5 * num_rows), sharex='col')
 
 # Loop through each machine ID
-for row, machine_id in enumerate(unique_machine_ids):
+print(sorted(unique_machine_ids))
+
+for row, machine_id in enumerate(sorted(unique_machine_ids)):
     # Plot CPU load
     cpu_indices_machine = np.where((machine_ids == machine_id) & np.isin(range(len(types)), cpu_indices))
     axes[row, 0].plot(times[cpu_indices_machine], loads[cpu_indices_machine], label=f'Machine {machine_id}', linestyle='-', marker='')

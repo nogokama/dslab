@@ -27,9 +27,9 @@ fn main() {
 
     let scheduler_context = sim.create_context("scheduler");
 
-    // let config = SimulationConfig::from_file("config.yaml");
+    let config = SimulationConfig::from_file("config.yaml");
     // let config = SimulationConfig::from_file("config_with_native.yaml");
-    let config = SimulationConfig::from_file("config_with_combinators.yaml");
+    // let config = SimulationConfig::from_file("config_with_combinators.yaml");
 
     let mut cluster_sim = ClusterSchedulingSimulation::new(sim, config, None);
 

@@ -25,16 +25,19 @@ workload:
 
 
 hosts: 
-  - count: 100
-    cpus: 30
+  - count: 2
+    cpus: 20
     cpu_speed: 1
     memory: 300
     name_prefix: m
     # host_per_rack: 10
-  - count: 50
+  - count: 5
     cpus: 100
     cpu_speed: 1
-    memory: 300
+    memory: 50
     name_prefix: c
     # host_per_rack: 5
+  
+monitoring:
+  compression: 15
 

@@ -116,7 +116,13 @@ pub enum MonitoringLevel {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct MonitoringConfig {
-    pub level: MonitoringLevel,
+    pub compression: Option<u32>,
+}
+
+impl Default for MonitoringConfig {
+    fn default() -> Self {
+        Self { compression: Some(1) }
+    }
 }
 
 /// Represents simulation configuration.

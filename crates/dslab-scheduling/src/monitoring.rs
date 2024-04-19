@@ -155,7 +155,7 @@ impl Monitoring {
         }
     }
 
-    pub fn add_host(&mut self, name: String, group_name: Option<String>, host_config: &HostConfig) {
+    pub fn add_host(&mut self, name: String, host_config: &HostConfig) {
         let host_load_info = LoadInfo::new(
             host_config.cpus as f64,
             host_config.memory as f64,
@@ -163,9 +163,9 @@ impl Monitoring {
             self.compression,
         );
 
-        if let Some(group_name) = group_name {
+        if let Some(group_name) = &host_config.group_prefix {
             self.groups
-                .entry(group_name)
+                .entry(group_name.clone())
                 .or_insert_with(|| LoadInfo::new(0., 0., None, self.compression))
                 .extend(&host_load_info);
         }
@@ -206,11 +206,11 @@ impl Monitoring {
         }
         if let Some(group_name) = group_name {
             if let Some(state) = self.groups.get_mut(group_name).unwrap().dump() {
-                self.dump_to_log_file(state, time, group_name);
+                self.dump_to_log_file(state, time, &format!("group-{}", group_name));
             }
         }
         if let Some(state) = self.total.dump() {
-            self.dump_to_log_file(state, time, "$total");
+            self.dump_to_log_file(state, time, "TOTAL");
         }
     }
 
