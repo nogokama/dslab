@@ -53,6 +53,7 @@ impl ExecutionProfile for CommunicationHomogenous {
                 }
             }
         }
+        join_all(futures).await;
     }
     fn name(&self) -> String {
         Self::get_name()

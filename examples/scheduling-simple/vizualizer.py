@@ -3,51 +3,81 @@ import numpy as np
 
 # Read data from the file
 with open('load.txt', 'r') as file:
-    data = file.read()
+    data = file.readlines()
+
+with open('scheduler_info.txt', 'r') as file:
+    scheduler_info = file.readlines()
 
 # Parse the data into separate lists
-types, times, machine_ids, loads = zip(*(line.split(', ') for line in data.strip().split('\n')))
+times = []
+host_names = []
+cpu_usages = []
+memory_usages = []
 
-# Convert lists to appropriate data types
-times = np.array([float(time) for time in times])
-machine_ids = np.array([str(machine_id) for machine_id in machine_ids])
-loads = np.array([float(load) for load in loads])
+for line in data:
+    parts = line.strip().split()
+    times.append(float(parts[0]))
+    host_names.append(parts[1])
+    cpu_usages.append(float(parts[2]))
+    memory_usages.append(float(parts[3]))
 
-# Filter data based on type (e.g., cpu)
-cpu_indices = [i for i, t in enumerate(types) if t == 'cpu']
-mem_indices = [i for i, t in enumerate(types) if t == 'mem']
+# Convert lists to numpy arrays
+times = np.array(times)
+cpu_usages = np.array(cpu_usages)
+memory_usages = np.array(memory_usages)
+host_names = np.array(host_names)
 
-# Get unique machine IDs
-unique_machine_ids = np.unique(machine_ids)
+# Get unique host names
+unique_host_names = np.unique(host_names)
 
-# Create a figure with a grid of subplots
-num_rows = len(unique_machine_ids) + 1 
-fig, axes = plt.subplots(num_rows, 2, figsize=(25, 5 * num_rows), sharex='col')
 
-# Loop through each machine ID
-print(sorted(unique_machine_ids))
+def plot_data(prefix: str):
+    # Create a figure with a grid of subplots
+    cur_names = list(filter(lambda x: x.startswith(prefix),unique_host_names))
+    num_rows = len(cur_names)
+    fig, axes = plt.subplots(max(num_rows, 2), 2, figsize=(25, 5 * num_rows), sharex='col')
 
-for row, machine_id in enumerate(sorted(unique_machine_ids)):
-    # Plot CPU load
-    cpu_indices_machine = np.where((machine_ids == machine_id) & np.isin(range(len(types)), cpu_indices))
-    axes[row, 0].plot(times[cpu_indices_machine], loads[cpu_indices_machine], label=f'Machine {machine_id}', linestyle='-', marker='')
-    axes[row, 0].set_ylabel('Load')
-    axes[row, 0].set_title(f'Machine {machine_id} - CPU Load')
-    axes[row, 0].legend()
+    # Loop through each host name
+    for row, host_name in enumerate(cur_names):
 
-    # Plot Memory load
-    mem_indices_machine = np.where((machine_ids == machine_id) & np.isin(range(len(types)), mem_indices))
-    axes[row, 1].plot(times[mem_indices_machine], loads[mem_indices_machine], label=f'Machine {machine_id}', linestyle='-', marker='')
-    axes[row, 1].set_ylabel('Load')
-    axes[row, 1].set_title(f'Machine {machine_id} - Memory Load')
-    axes[row, 1].legend()
+        # Plot CPU usage
+        indices = np.where((host_names == host_name))
+        axes[row, 0].plot(times[indices], cpu_usages[indices], label=f'{host_name}', linestyle='-', marker='')
+        axes[row, 0].set_ylabel('CPU Usage')
+        axes[row, 0].set_title(f'{host_name} - CPU Usage')
+        axes[row, 0].legend()
 
-# Set common x-axis label
-axes[-1, 0].set_xlabel('Time')
-axes[-1, 1].set_xlabel('Time')
+        axes[row, 1].plot(times[indices], memory_usages[indices], label=f'{host_name}', linestyle='-', marker='')
+        axes[row, 1].set_ylabel('Memory Usage')
+        axes[row, 1].set_title(f'{host_name} - Memory Usage')
+        axes[row, 1].legend()
 
-# Adjust layout
-plt.tight_layout()
+    # Set common x-axis label
+    axes[-1, 0].set_xlabel('Time')
+    axes[-1, 1].set_xlabel('Time')
 
-# Save the plot
-plt.savefig('timeseries.png')
+    # Adjust layout
+    plt.tight_layout()
+
+    # Save the plot
+    plt.savefig(f'{prefix}_timeseries.png')
+
+plot_data('host')
+plot_data('group')
+plot_data('TOTAL')
+
+
+plt.clf()
+plt.plot(figsize=(25, 5))
+plt.xlabel('Time')
+plt.ylabel('Queue Size')
+plt.title('Scheduler Queue Size')
+times = []
+queue_sizes = []
+for line in scheduler_info:
+    parts = line.strip().split()
+    times.append(float(parts[0]))
+    queue_sizes.append(float(parts[1]))
+
+plt.plot(times, queue_sizes, label='Queue Size', linestyle='-', marker='')
+plt.savefig('queue_size.png')

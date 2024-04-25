@@ -11,18 +11,6 @@ pub fn parse_config_value(config_str: &str) -> (String, Option<String>) {
     }
 }
 
-/// Parses options string from config value, returns map with option names and values.
-///
-/// # Examples
-///
-/// ```rust
-/// use dslab_iaas::core::config::options::parse_options;
-///
-/// let options = parse_options("option1=0.8,option2=something");
-/// assert_eq!(options.get("option1").unwrap(), "0.8");
-/// assert_eq!(options.get("option2").unwrap(), "something");
-/// assert_eq!(options.get("option3"), None);
-/// ```
 pub fn parse_options(options_str: &str) -> HashMap<String, String> {
     let mut options = HashMap::new();
     for option_str in options_str.split(',') {

@@ -1,7 +1,10 @@
+use std::cell::RefCell;
 use std::io::Write;
+use std::rc::Rc;
 use std::{collections::HashMap, fs::File, io::Read};
 
 use async_trait::async_trait;
+use dslab_core::{cast, Event, EventHandler, Id};
 use dslab_core::{log_info, simulation::Simulation, SimulationContext};
 
 use env_logger::Builder;
@@ -187,12 +190,67 @@ pub struct RawConfig {
     pub workload: Option<Vec<ClusterWorkloadConfig>>,
 }
 
-fn main() {
-    let yaml_file_path = "test.yaml";
-    let raw: RawConfig = serde_yaml::from_str(
-        &std::fs::read_to_string(yaml_file_path).unwrap_or_else(|_| panic!("Can't read file {}", yaml_file_path)),
-    )
-    .unwrap();
+#[derive(Clone, Serialize)]
+struct TestEvent {
+    id: u32,
+    time: f64,
+}
 
-    println!("{:?}", raw);
+struct Component {
+    other_id: Id,
+    ctx: SimulationContext,
+    data: Rc<RefCell<Vec<u64>>>,
+    cnt: u32,
+}
+impl EventHandler for Component {
+    fn on(&mut self, event: Event) {
+        cast!(match event.data {
+            TestEvent { id, time } => {
+                self.data.borrow_mut().push(event.id);
+                if self.cnt > 0 {
+                    self.cnt -= 1;
+                    self.ctx.emit_now(TestEvent { id, time }, self.other_id);
+                }
+                log_info!(self.ctx, "Received TestEvent with id {} at time {}", id, time);
+            }
+        });
+    }
+}
+
+fn main() {
+    Builder::from_default_env()
+        .format(|buf, record| writeln!(buf, "{}", record.args()))
+        .init();
+
+    let mut sim = Simulation::new(42);
+    let data = Rc::new(RefCell::new(Vec::new()));
+
+    let comp_ctx = sim.create_context("comp");
+    let comp_id = comp_ctx.id();
+    let comp_2_ctx = sim.create_context("comp_2");
+    let comp_2_id = comp_2_ctx.id();
+    let comp = Rc::new(RefCell::new(Component {
+        cnt: 100,
+        data: data.clone(),
+        other_id: comp_2_ctx.id(),
+        ctx: comp_ctx,
+    }));
+
+    let comp_2 = Rc::new(RefCell::new(Component {
+        cnt: 100,
+        data: data.clone(),
+        other_id: comp_id,
+        ctx: comp_2_ctx,
+    }));
+
+    sim.add_handler("comp", comp);
+    sim.add_handler("comp_2", comp_2);
+
+    let client_ctx = sim.create_context("client");
+    client_ctx.emit(TestEvent { id: 42, time: 3.14 }, comp_id, 1.2);
+    client_ctx.emit(TestEvent { id: 43, time: 2.71 }, comp_2_id, 1.2);
+
+    sim.step_until_no_events();
+
+    println!("data: {:?}", *data.borrow());
 }

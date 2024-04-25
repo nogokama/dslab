@@ -45,6 +45,7 @@ impl ClusterSchedulingSimulation {
         config: SimulationConfig,
         network_opt: Option<Rc<RefCell<Network>>>,
     ) -> ClusterSchedulingSimulation {
+        let monitoring = rc!(refcell!(Monitoring::new(config.monitoring.unwrap_or_default())));
         let shared_storage = rc!(refcell!(SharedInfoStorage::new()));
         let host_process_storage = rc!(refcell!(ProcessHostStorage::new()));
 
@@ -53,12 +54,18 @@ impl ClusterSchedulingSimulation {
         let cluster = rc!(refcell!(Cluster::new(
             cluster_ctx,
             shared_storage.clone(),
-            host_process_storage.clone()
+            host_process_storage.clone(),
+            monitoring.clone(),
         )));
         sim.add_handler("cluster", cluster.clone());
 
         let proxy_ctx = sim.create_context("proxy");
-        let proxy = rc!(refcell!(Proxy::new(proxy_ctx, cluster_id, shared_storage.clone())));
+        let proxy = rc!(refcell!(Proxy::new(
+            proxy_ctx,
+            cluster_id,
+            shared_storage.clone(),
+            monitoring.clone()
+        )));
         sim.add_handler("proxy", proxy.clone());
 
         let generator_ctx = sim.create_context("generator");
@@ -76,10 +83,7 @@ impl ClusterSchedulingSimulation {
             proxy,
             shared_storage,
             host_process_storage,
-
-            monitoring: rc!(refcell!(Monitoring::new(
-                config.monitoring.unwrap_or_default().compression.unwrap_or(1)
-            ))),
+            monitoring,
 
             profile_builder: ProfileBuilder::new(),
         };

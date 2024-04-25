@@ -2,24 +2,34 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use dslab_core::{cast, log_debug, EventHandler, Id, SimulationContext};
 
-use crate::{cluster_events::HostAdded, storage::SharedInfoStorage, workload_generators::events::ExecutionRequest};
+use crate::{
+    cluster_events::HostAdded, monitoring::Monitoring, storage::SharedInfoStorage,
+    workload_generators::events::ExecutionRequest,
+};
 
 pub struct Proxy {
     jobs_scheduled_time: HashMap<u64, f64>,
     scheduler_id: Id,
     cluster_id: Id,
     job_info_storage: Rc<RefCell<SharedInfoStorage>>,
+    monitoring: Rc<RefCell<Monitoring>>,
 
     ctx: SimulationContext,
 }
 
 impl Proxy {
-    pub fn new(ctx: SimulationContext, cluster_id: Id, job_info_storage: Rc<RefCell<SharedInfoStorage>>) -> Proxy {
+    pub fn new(
+        ctx: SimulationContext,
+        cluster_id: Id,
+        job_info_storage: Rc<RefCell<SharedInfoStorage>>,
+        monitoring: Rc<RefCell<Monitoring>>,
+    ) -> Proxy {
         Proxy {
             scheduler_id: u32::MAX,
             jobs_scheduled_time: HashMap::new(),
             cluster_id,
             job_info_storage,
+            monitoring,
             ctx,
         }
     }
@@ -59,6 +69,8 @@ impl EventHandler for Proxy {
                 self.ctx.emit_now(request.clone(), self.scheduler_id);
 
                 self.job_info_storage.borrow_mut().set_job_request(id.unwrap(), request);
+
+                self.monitoring.borrow_mut().add_scheduler_queue_size(event.time, 1);
             }
 
             HostAdded { host } => {

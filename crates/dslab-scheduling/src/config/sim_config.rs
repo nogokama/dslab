@@ -116,12 +116,16 @@ pub enum MonitoringLevel {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct MonitoringConfig {
-    pub compression: Option<u32>,
+    pub host_load_compression_time_interval: Option<f64>,
+    pub scheduler_queue_compression_time_interval: Option<f64>,
 }
 
 impl Default for MonitoringConfig {
     fn default() -> Self {
-        Self { compression: Some(1) }
+        Self {
+            host_load_compression_time_interval: None,
+            scheduler_queue_compression_time_interval: None,
+        }
     }
 }
 

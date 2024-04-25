@@ -16,6 +16,7 @@ use sugars::{rc, refcell};
 use crate::{
     config::sim_config::HostConfig,
     host::{cluster_host::ClusterHost, process::HostProcessInstance, storage::ProcessHostStorage},
+    monitoring::Monitoring,
     storage::SharedInfoStorage,
     workload_generators::events::ExecutionRequest,
 };
@@ -51,6 +52,7 @@ pub(crate) struct Cluster {
 
     shared_info_storage: Rc<RefCell<SharedInfoStorage>>,
     host_process_storage: Rc<RefCell<ProcessHostStorage>>,
+    monitoring: Rc<RefCell<Monitoring>>,
 
     scheduler_id: Id,
     ctx: SimulationContext,
@@ -63,6 +65,7 @@ impl Cluster {
         ctx: SimulationContext,
         shared_info_storage: Rc<RefCell<SharedInfoStorage>>,
         host_process_storage: Rc<RefCell<ProcessHostStorage>>,
+        monitoring: Rc<RefCell<Monitoring>>,
     ) -> Cluster {
         Cluster {
             hosts: refcell!(HashMap::new()),
@@ -70,6 +73,7 @@ impl Cluster {
             enabled_hosts: refcell!(HashSet::new()),
             shared_info_storage,
             host_process_storage,
+            monitoring,
 
             scheduler_id: u32::MAX, // must be set later
             ctx,
@@ -109,6 +113,10 @@ impl Cluster {
         let processes = self.allocate_processes(&hosts, &request).await;
 
         let hosts_ids = processes.iter().map(|p| p.host.id()).collect::<Vec<_>>();
+
+        self.monitoring
+            .borrow_mut()
+            .add_scheduler_queue_size(self.ctx.time(), -1);
 
         log_info!(
             self.ctx,
