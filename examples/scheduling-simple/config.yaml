@@ -7,8 +7,8 @@ workload:
       cpu_max: 15
       memory_min: 1
       memory_max: 5
-      delay_min: 10
-      delay_max: 50
+      delay_min: 1
+      delay_max: 10
       load_min: 1000
       load_max: 4000
   - type: Random
@@ -19,13 +19,13 @@ workload:
       memory_min: 4
       memory_max: 7
       delay_min: 1
-      delay_max: 20
+      delay_max: 10
       load_min: 1000
       load_max: 4000
 
 
 hosts: 
-  - count: 2
+  - count: 5
     cpus: 20
     cpu_speed: 1
     memory: 300
@@ -41,3 +41,4 @@ hosts:
 monitoring:
   host_load_compression_time_interval: 100
   scheduler_queue_compression_time_interval: 400
+  display_host_load: true 

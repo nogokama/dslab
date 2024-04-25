@@ -32,7 +32,7 @@ impl Allocation {
 pub struct ManagedAllocation {
     pub cores: u32,
     pub memory: u64,
-    pub throughput_model: FairThroughputSharingModel<RunningComputation>,
+    throughput_model: FairThroughputSharingModel<RunningComputation>,
     pub next_event: EventId,
 }
 

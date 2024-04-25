@@ -118,6 +118,7 @@ pub enum MonitoringLevel {
 pub struct MonitoringConfig {
     pub host_load_compression_time_interval: Option<f64>,
     pub scheduler_queue_compression_time_interval: Option<f64>,
+    pub display_host_load: bool,
 }
 
 impl Default for MonitoringConfig {
@@ -125,6 +126,7 @@ impl Default for MonitoringConfig {
         Self {
             host_load_compression_time_interval: None,
             scheduler_queue_compression_time_interval: None,
+            display_host_load: true,
         }
     }
 }

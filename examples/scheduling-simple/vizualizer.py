@@ -34,6 +34,8 @@ unique_host_names = np.unique(host_names)
 def plot_data(prefix: str):
     # Create a figure with a grid of subplots
     cur_names = list(filter(lambda x: x.startswith(prefix),unique_host_names))
+    if len(cur_names) == 0:
+        return
     num_rows = len(cur_names)
     fig, axes = plt.subplots(max(num_rows, 2), 2, figsize=(25, 5 * num_rows), sharex='col')
 

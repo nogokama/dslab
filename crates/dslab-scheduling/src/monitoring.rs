@@ -210,6 +210,7 @@ pub struct Monitoring {
     pub total: HostLoadInfo,
     pub scheduler_queue_size: ResourceLoad,
     pub host_load_compression_time_interval: Option<f64>,
+    pub display_host_load: bool,
 
     host_log_file: BufWriter<File>,
     scheduler_log_file: BufWriter<File>,
@@ -230,6 +231,7 @@ impl Monitoring {
             host_log_file,
             scheduler_log_file,
             host_load_compression_time_interval: config.host_load_compression_time_interval,
+            display_host_load: config.display_host_load,
         }
     }
 
@@ -288,7 +290,9 @@ impl Monitoring {
         self.total.add(state, time);
 
         for point in host_load_info.dump() {
-            self.dump_load(point.state, point.time, name);
+            if self.display_host_load {
+                self.dump_load(point.state, point.time, name);
+            }
         }
         if let Some(group_name) = group_name {
             for point in self.groups.get_mut(group_name).unwrap().dump() {
