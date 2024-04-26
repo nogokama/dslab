@@ -73,7 +73,10 @@ impl ClusterHost {
     pub async fn transfer_data(&self, size: f64, dst_process: ProcessId) {
         let dst_host = self.shared_info_storage.borrow().get_host_id(dst_process);
 
-        let network = self.network.as_ref().unwrap();
+        let network = self
+            .network
+            .as_ref()
+            .expect("network must be configured to call network operations");
 
         let req_id = network
             .borrow_mut()

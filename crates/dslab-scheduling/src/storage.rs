@@ -15,11 +15,11 @@ impl SharedInfoStorage {
         }
     }
 
-    pub fn get_job_request(&self, task_id: u64) -> ExecutionRequest {
+    pub fn get_execution_request(&self, task_id: u64) -> ExecutionRequest {
         self.jobs_info.get(&task_id).unwrap().clone()
     }
 
-    pub fn set_job_request(&mut self, task_id: u64, task_request: ExecutionRequest) {
+    pub fn set_execution_request(&mut self, task_id: u64, task_request: ExecutionRequest) {
         self.jobs_info.insert(task_id, task_request);
     }
 }

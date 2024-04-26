@@ -3,7 +3,7 @@ workload:
   - type: Native 
     path: combined_workload.json
     options:
-      profile_path: combined_profiles.json
+      profile_path: combined_profiles.yaml
       
 
 hosts: 
@@ -19,4 +19,4 @@ hosts:
     name_prefix: c
 
 
- 
+    

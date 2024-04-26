@@ -18,11 +18,12 @@ use super::{
 #[serde(untagged)]
 pub enum ProfileDefinition {
     Simple(String),
-    Detailed { r#type: String, args: serde_json::Value },
+    Detailed { r#type: String, args: serde_yaml::Value },
 }
 
-pub type ConstructorFn = Rc<dyn Fn(&serde_json::Value) -> Rc<dyn ExecutionProfile>>;
+pub type ConstructorFn = Rc<dyn Fn(&serde_yaml::Value) -> Rc<dyn ExecutionProfile>>;
 
+#[derive(Clone)]
 pub struct ProfileBuilder {
     pub constructors: Rc<RefCell<HashMap<String, ConstructorFn>>>,
 }
@@ -32,10 +33,10 @@ impl ProfileBuilder {
         let constructors: Rc<RefCell<HashMap<String, ConstructorFn>>> = rc!(refcell!(HashMap::new()));
         constructors
             .borrow_mut()
-            .insert(CpuBurnHomogenous::get_name(), Rc::new(from_json::<CpuBurnHomogenous>));
+            .insert(CpuBurnHomogenous::get_name(), Rc::new(from_yaml::<CpuBurnHomogenous>));
         constructors.borrow_mut().insert(
             CommunicationHomogenous::get_name(),
-            Rc::new(from_json::<CommunicationHomogenous>),
+            Rc::new(from_yaml::<CommunicationHomogenous>),
         );
 
         let mut constructors_clone = constructors.clone();
@@ -55,10 +56,11 @@ impl ProfileBuilder {
         }
     }
 
-    pub fn parse_profiles(&mut self, json: &serde_json::Value) {
-        json.as_object().unwrap().iter().for_each(|(name, value)| {
+    pub fn parse_profiles(&self, yaml: &serde_yaml::Value) {
+        yaml.as_mapping().unwrap().iter().for_each(|(name, value)| {
+            let name = name.as_str().unwrap().to_string();
             println!("name: {}", &name);
-            let profile = match serde_json::from_value::<ProfileDefinition>(value.clone()) {
+            let profile = match serde_yaml::from_value::<ProfileDefinition>(value.clone()) {
                 Ok(profile) => profile,
                 Err(e) => panic!("Can't parse profile {}: {}", name, e),
             };
@@ -80,6 +82,20 @@ impl ProfileBuilder {
         });
     }
 
+    pub fn register_profile_with_constructor(&mut self, name: String, constructor: ConstructorFn) {
+        self.constructors.borrow_mut().insert(name, constructor);
+    }
+
+    pub fn register_profile<T, S>(&mut self, name: S)
+    where
+        T: ExecutionProfile + DeserializeOwned + 'static,
+        S: AsRef<str>,
+    {
+        self.constructors
+            .borrow_mut()
+            .insert(name.as_ref().to_string(), Rc::new(from_yaml::<T>));
+    }
+
     pub fn build(&self, profile: ProfileDefinition) -> Rc<dyn ExecutionProfile> {
         Self::build_raw(profile, &self.constructors)
     }
@@ -94,26 +110,26 @@ impl ProfileBuilder {
                     .borrow()
                     .get(&profile_name)
                     .cloned()
-                    .unwrap_or_else(|| panic!("Profile {} not found in the constructor list", profile_name));
-                constructor(&serde_json::Value::Null)
+                    .unwrap_or_else(|| panic!("Profile {} not found in the constructor list. Indicate it's definition above all the profiles dependant from it.", profile_name));
+                constructor(&serde_yaml::Value::Null)
             }
             ProfileDefinition::Detailed { r#type, args } => {
                 let constructor = constructors
                     .borrow()
                     .get(&r#type)
                     .cloned()
-                    .unwrap_or_else(|| panic!("Profile {} not found in the constructor list", r#type));
+                    .unwrap_or_else(|| panic!("Profile {} not found in the constructor list. Indicate it's definition above all the profiles dependant from it.", r#type));
                 constructor(&args)
             }
         }
     }
 }
 
-pub fn from_json<T>(json: &serde_json::Value) -> Rc<dyn ExecutionProfile>
+pub fn from_yaml<T>(yaml: &serde_yaml::Value) -> Rc<dyn ExecutionProfile>
 where
     T: DeserializeOwned + ExecutionProfile + 'static,
 {
-    let profile: T = serde_json::from_value(json.clone()).unwrap();
+    let profile: T = serde_yaml::from_value(yaml.clone()).unwrap();
     Rc::new(profile)
 }
 
@@ -124,10 +140,10 @@ struct CombinatorDefinition {
 }
 
 pub fn parse_combinator<T: ProfileCombinator>(
-    json: &serde_json::Value,
+    yaml: &serde_yaml::Value,
     constructors: Rc<RefCell<HashMap<String, ConstructorFn>>>,
 ) -> Rc<T> {
-    let combinator: CombinatorDefinition = serde_json::from_value(json.clone()).unwrap();
+    let combinator: CombinatorDefinition = serde_yaml::from_value(yaml.clone()).unwrap();
     let profiles = combinator
         .profiles
         .iter()

@@ -1,3 +1,4 @@
+mod profiles;
 mod round_robin;
 // mod tetris;
 
@@ -10,6 +11,7 @@ use dslab_scheduling::{
     workload_generators::random::RandomWorkloadGenerator,
 };
 use env_logger::Builder;
+use profiles::TestProfile;
 use round_robin::RoundRobinScheduler;
 use serde::Serialize;
 use std::{
@@ -27,11 +29,14 @@ fn main() {
 
     let scheduler_context = sim.create_context("scheduler");
 
-    let config = SimulationConfig::from_file("config.yaml");
+    // let config = SimulationConfig::from_file("config.yaml");
     // let config = SimulationConfig::from_file("config_with_native.yaml");
     // let config = SimulationConfig::from_file("config_with_combinators.yaml");
+    let config = SimulationConfig::from_file("configs/config_with_custom_profiles.yaml");
 
     let mut cluster_sim = ClusterSchedulingSimulation::new(sim, config, None);
+
+    cluster_sim.register_profile::<TestProfile>("test-profile");
 
     let cluster_id = cluster_sim.get_cluster_id();
     // cluster_sim.run(TetrisScheduler::new(cluster_id, scheduler_context));

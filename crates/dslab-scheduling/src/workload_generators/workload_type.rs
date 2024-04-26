@@ -38,7 +38,10 @@ impl FromStr for WorkloadType {
     }
 }
 
-pub fn workload_resolver(config: &ClusterWorkloadConfig) -> Box<dyn WorkloadGenerator> {
+pub fn workload_resolver(
+    config: &ClusterWorkloadConfig,
+    profile_builder: ProfileBuilder,
+) -> Box<dyn WorkloadGenerator> {
     let workload_type = WorkloadType::from_str(&config.r#type).unwrap();
     let options = config.options.clone();
     let path = config.path.clone();
@@ -53,10 +56,10 @@ pub fn workload_resolver(config: &ClusterWorkloadConfig) -> Box<dyn WorkloadGene
         WorkloadType::Native => Box::new(NativeWorkloadGenerator::new(
             path.expect("Native workload path is required"),
             options
-                .unwrap()
+                .unwrap_or_default()
                 .get("profile_path")
                 .map(|f| f.as_str().unwrap().to_string()),
-            ProfileBuilder::new(),
+            profile_builder,
         )),
     }
 }

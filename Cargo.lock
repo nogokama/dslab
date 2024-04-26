@@ -3529,11 +3529,14 @@ dependencies = [
 name = "scheduling-simple"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "clap 3.2.25",
+ "dslab-compute",
  "dslab-core",
  "dslab-network",
  "dslab-scheduling",
  "env_logger 0.9.3",
+ "futures",
  "log 0.4.21",
  "serde",
  "sugars",

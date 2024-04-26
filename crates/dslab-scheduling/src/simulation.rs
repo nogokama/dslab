@@ -5,16 +5,20 @@ use dslab_compute::multicore::{AllocationSuccess, CompFinished, CompStarted, Com
 use dslab_core::{event, EventHandler, Id, Simulation, SimulationContext};
 use dslab_network::{
     models::{ConstantBandwidthNetworkModel, SharedBandwidthNetworkModel},
-    Network, NetworkModel,
+    DataTransferCompleted, Network, NetworkModel,
 };
 use dslab_storage::disk::DiskBuilder;
+use serde::de::DeserializeOwned;
 use sugars::{boxed, rc, refcell};
 
 use crate::{
     cluster::Cluster,
     cluster_events::HostAdded,
     config::sim_config::{GroupHostConfig, HostConfig, NetworkConfig, SimulationConfig},
-    execution_profiles::builder::ProfileBuilder,
+    execution_profiles::{
+        builder::{ConstructorFn, ProfileBuilder},
+        profile::ExecutionProfile,
+    },
     host::{cluster_host::ClusterHost, storage::ProcessHostStorage},
     monitoring::Monitoring,
     proxy::Proxy,
@@ -36,7 +40,6 @@ pub struct ClusterSchedulingSimulation {
     host_process_storage: Rc<RefCell<ProcessHostStorage>>,
 
     profile_builder: ProfileBuilder,
-    // TODO: monitoring service connected to proxy & cluster
 }
 
 impl ClusterSchedulingSimulation {
@@ -70,6 +73,8 @@ impl ClusterSchedulingSimulation {
 
         let generator_ctx = sim.create_context("generator");
 
+        let profile_builder = ProfileBuilder::new();
+
         let mut cluster_simulation = ClusterSchedulingSimulation {
             sim,
             workload_generators: config
@@ -77,7 +82,7 @@ impl ClusterSchedulingSimulation {
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|w| workload_resolver(w))
+                .map(|w| workload_resolver(w, profile_builder.clone()))
                 .collect::<Vec<_>>(),
             cluster,
             proxy,
@@ -85,7 +90,7 @@ impl ClusterSchedulingSimulation {
             host_process_storage,
             monitoring,
 
-            profile_builder: ProfileBuilder::new(),
+            profile_builder,
         };
 
         cluster_simulation.register_key_getters();
@@ -184,6 +189,7 @@ impl ClusterSchedulingSimulation {
                         .unwrap_or(network_config.unwrap().local_latency),
                 )),
             );
+            network.borrow_mut().set_location(host_ctx.id(), &host_name);
         }
 
         let disk = if let Some(disk_cap) = host_config.disk_capacity {
@@ -219,6 +225,18 @@ impl ClusterSchedulingSimulation {
         cluster.add_host(host_config, host);
     }
 
+    pub fn register_profile_with_constructor(&mut self, name: String, constructor: ConstructorFn) {
+        self.profile_builder
+            .register_profile_with_constructor(name, constructor)
+    }
+
+    pub fn register_profile<T>(&mut self, name: &str)
+    where
+        T: ExecutionProfile + DeserializeOwned + 'static,
+    {
+        self.profile_builder.register_profile::<T, &str>(name)
+    }
+
     pub fn run_with_custom_scheduler<T: EventHandler + Scheduler + 'static>(&mut self, scheduler: T) {
         let scheduler_id = scheduler.id();
         let name = scheduler.name().clone();
@@ -252,8 +270,8 @@ impl ClusterSchedulingSimulation {
         for workload_generator in self.workload_generators.iter() {
             let mut workload = workload_generator.get_workload(&generator_ctx);
 
-            for job_request in workload.iter_mut() {
-                if let Some(id) = job_request.id {
+            for execution_request in workload.iter_mut() {
+                if let Some(id) = execution_request.id {
                     if used_ids.contains(&id) {
                         panic!("Job id {} is used twice", id);
                     }
@@ -262,14 +280,14 @@ impl ClusterSchedulingSimulation {
                     while used_ids.contains(&next_job_id) {
                         next_job_id += 1;
                     }
-                    job_request.id = Some(next_job_id);
+                    execution_request.id = Some(next_job_id);
                     next_job_id += 1;
                 }
             }
 
-            for job_request in workload {
-                let time = job_request.time;
-                generator_ctx.emit(job_request, proxy_id, time);
+            for execution_request in workload {
+                let time = execution_request.time;
+                generator_ctx.emit(execution_request, proxy_id, time);
             }
         }
     }
@@ -279,5 +297,7 @@ impl ClusterSchedulingSimulation {
         self.sim.register_key_getter_for::<CompStarted>(|c| c.id);
         self.sim.register_key_getter_for::<AllocationSuccess>(|c| c.id);
         self.sim.register_key_getter_for::<DeallocationSuccess>(|c| c.id);
+        self.sim
+            .register_key_getter_for::<DataTransferCompleted>(|c| c.dt.id as u64);
     }
 }

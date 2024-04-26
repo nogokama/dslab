@@ -98,13 +98,13 @@ impl Cluster {
         self.hosts_configs.borrow().values().cloned().collect::<Vec<_>>()
     }
 
-    fn schedule_task(&self, host_ids: Vec<Id>, task_id: u64) {
+    fn schedule_task(&self, host_ids: Vec<Id>, execution_id: u64) {
         let hosts = host_ids
             .iter()
             .map(|id| self.hosts.borrow().get(id).unwrap().clone())
             .collect::<Vec<_>>();
 
-        let request = self.shared_info_storage.borrow().get_job_request(task_id);
+        let request = self.shared_info_storage.borrow().get_execution_request(execution_id);
 
         self.ctx.spawn(self.track_task_process(hosts, request));
     }

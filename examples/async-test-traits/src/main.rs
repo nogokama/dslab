@@ -222,35 +222,9 @@ fn main() {
         .format(|buf, record| writeln!(buf, "{}", record.args()))
         .init();
 
-    let mut sim = Simulation::new(42);
-    let data = Rc::new(RefCell::new(Vec::new()));
+    let file = File::open("test.yaml").unwrap();
 
-    let comp_ctx = sim.create_context("comp");
-    let comp_id = comp_ctx.id();
-    let comp_2_ctx = sim.create_context("comp_2");
-    let comp_2_id = comp_2_ctx.id();
-    let comp = Rc::new(RefCell::new(Component {
-        cnt: 100,
-        data: data.clone(),
-        other_id: comp_2_ctx.id(),
-        ctx: comp_ctx,
-    }));
+    let yaml_file: serde_yaml::Value = serde_yaml::from_reader(file).unwrap();
 
-    let comp_2 = Rc::new(RefCell::new(Component {
-        cnt: 100,
-        data: data.clone(),
-        other_id: comp_id,
-        ctx: comp_2_ctx,
-    }));
-
-    sim.add_handler("comp", comp);
-    sim.add_handler("comp_2", comp_2);
-
-    let client_ctx = sim.create_context("client");
-    client_ctx.emit(TestEvent { id: 42, time: 3.14 }, comp_id, 1.2);
-    client_ctx.emit(TestEvent { id: 43, time: 2.71 }, comp_2_id, 1.2);
-
-    sim.step_until_no_events();
-
-    println!("data: {:?}", *data.borrow());
+    println!("{:?}", yaml_file);
 }

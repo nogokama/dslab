@@ -68,7 +68,9 @@ impl EventHandler for Proxy {
                 };
                 self.ctx.emit_now(request.clone(), self.scheduler_id);
 
-                self.job_info_storage.borrow_mut().set_job_request(id.unwrap(), request);
+                self.job_info_storage
+                    .borrow_mut()
+                    .set_execution_request(id.unwrap(), request);
 
                 self.monitoring.borrow_mut().add_scheduler_queue_size(event.time, 1);
             }

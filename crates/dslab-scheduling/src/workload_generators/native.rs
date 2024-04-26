@@ -21,6 +21,7 @@ struct JobDefinition {
 pub struct NativeWorkloadGenerator {
     workload: Vec<JobDefinition>,
     profile_builder: ProfileBuilder,
+    profile_path: Option<String>,
 }
 
 impl NativeWorkloadGenerator {
@@ -29,14 +30,6 @@ impl NativeWorkloadGenerator {
         profile_path: Option<String>,
         mut profile_builder: ProfileBuilder,
     ) -> NativeWorkloadGenerator {
-        if let Some(profile_path) = profile_path {
-            let profiles = serde_json::from_str(
-                &std::fs::read_to_string(&profile_path).unwrap_or_else(|_| panic!("Can't read file {}", profile_path)),
-            )
-            .unwrap_or_else(|_| panic!("Can't parse JSON from file {}", profile_path));
-            profile_builder.parse_profiles(&profiles)
-        }
-
         let jobs: Vec<JobDefinition> = serde_json::from_str(
             &std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("Can't read file {}", path)),
         )
@@ -45,12 +38,23 @@ impl NativeWorkloadGenerator {
         NativeWorkloadGenerator {
             workload: jobs,
             profile_builder,
+            profile_path,
         }
     }
 }
 
 impl WorkloadGenerator for NativeWorkloadGenerator {
     fn get_workload(&self, ctx: &SimulationContext) -> Vec<ExecutionRequest> {
+        if let Some(profile_path) = &self.profile_path {
+            let profiles = serde_yaml::from_str(
+                &std::fs::read_to_string(&profile_path)
+                    .unwrap_or_else(|e| panic!("Can't read file {}: {}", profile_path, e)),
+            )
+            .unwrap_or_else(|e| panic!("Can't parse profiles from file {}: {}", profile_path, e));
+
+            self.profile_builder.parse_profiles(&profiles)
+        }
+
         let workload = self
             .workload
             .iter()

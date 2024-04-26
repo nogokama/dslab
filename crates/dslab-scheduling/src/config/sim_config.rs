@@ -59,7 +59,7 @@ pub struct RawSimulationConfig {
     pub hosts: Option<Vec<GroupHostConfig>>,
     pub schedulers: Option<Vec<SchedulerConfig>>,
     pub workload: Option<Vec<ClusterWorkloadConfig>>,
-    pub newtork: Option<NetworkConfig>,
+    pub network: Option<NetworkConfig>,
     pub monitoring: Option<MonitoringConfig>,
 }
 
@@ -149,9 +149,9 @@ impl SimulationConfig {
     /// (uses default values if some parameters are absent).
     pub fn from_file(file_name: &str) -> Self {
         let raw: RawSimulationConfig = serde_yaml::from_str(
-            &std::fs::read_to_string(file_name).unwrap_or_else(|_| panic!("Can't read file {}", file_name)),
+            &std::fs::read_to_string(file_name).unwrap_or_else(|e| panic!("Can't read file {}: {}", file_name, e)),
         )
-        .unwrap_or_else(|_| panic!("Can't parse YAML from file {}", file_name));
+        .unwrap_or_else(|e| panic!("Can't parse YAML from file {}: {}", file_name, e));
 
         println!("{:?}", raw.monitoring);
 
@@ -159,7 +159,7 @@ impl SimulationConfig {
             workload: raw.workload,
             hosts: raw.hosts.unwrap_or_default(),
             schedulers: raw.schedulers.unwrap_or_default(),
-            network: raw.newtork,
+            network: raw.network,
             monitoring: raw.monitoring,
         }
     }
