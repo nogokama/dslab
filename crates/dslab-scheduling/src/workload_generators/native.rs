@@ -16,6 +16,7 @@ struct JobDefinition {
     pub resources: ResourceRequirements,
     pub profile: ProfileDefinition,
     pub wall_time_limit: Option<f64>,
+    pub priority: Option<u64>,
 }
 
 pub struct NativeWorkloadGenerator {
@@ -66,6 +67,7 @@ impl WorkloadGenerator for NativeWorkloadGenerator {
                 resources: job.resources.clone(),
                 profile: self.profile_builder.build(job.profile.clone()),
                 wall_time_limit: job.wall_time_limit,
+                priority: job.priority,
             })
             .collect::<Vec<_>>();
 

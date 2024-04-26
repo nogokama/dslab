@@ -70,17 +70,31 @@ impl ClusterHost {
         log_debug!(self.ctx, "completed flops: id={}, flops={}", req_id, flops);
     }
 
-    pub async fn transfer_data(&self, size: f64, dst_process: ProcessId) {
+    pub async fn transfer_data_to_process(&self, size: f64, dst_process: ProcessId) {
         let dst_host = self.shared_info_storage.borrow().get_host_id(dst_process);
+        self.transfer_data(size, self.ctx.id(), dst_host).await;
+    }
 
+    pub async fn transfer_data_from_process(&self, size: f64, src_process: ProcessId) {
+        let src_host = self.shared_info_storage.borrow().get_host_id(src_process);
+        self.transfer_data(size, src_host, self.ctx.id()).await;
+    }
+
+    pub async fn transfer_data_to_component(&self, size: f64, component_id: Id) {
+        self.transfer_data(size, self.ctx.id(), component_id).await;
+    }
+
+    pub async fn transfer_data_from_component(&self, size: f64, component_id: Id) {
+        self.transfer_data(size, component_id, self.ctx.id()).await;
+    }
+
+    async fn transfer_data(&self, size: f64, src: Id, dst: Id) {
         let network = self
             .network
             .as_ref()
             .expect("network must be configured to call network operations");
 
-        let req_id = network
-            .borrow_mut()
-            .transfer_data(self.ctx.id(), dst_host, size, self.ctx.id());
+        let req_id = network.borrow_mut().transfer_data(src, dst, size, self.ctx.id());
 
         self.ctx.recv_event_by_key::<DataTransferCompleted>(req_id as u64).await;
     }

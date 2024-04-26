@@ -49,7 +49,7 @@ impl ExecutionProfile for CommunicationHomogenous {
         for i in 0..processes.len() {
             for j in 0..processes.len() {
                 if i != j {
-                    futures.push(processes[i].transfer_data(self.size, processes[j].id));
+                    futures.push(processes[i].transfer_data_to_process(self.size, processes[j].id));
                 }
             }
         }
@@ -82,7 +82,8 @@ impl ExecutionProfile for MasterWorkers {
 
         join_all(worker_processes.iter().map(|p| async {
             p.run_flops(self.worker_flops, CoresDependency::Linear).await;
-            p.transfer_data(self.data_transfer_bytes, master_process.id).await;
+            p.transfer_data_to_process(self.data_transfer_bytes, master_process.id)
+                .await;
         }))
         .await;
 

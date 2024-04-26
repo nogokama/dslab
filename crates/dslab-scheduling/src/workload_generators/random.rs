@@ -51,6 +51,7 @@ impl WorkloadGenerator for RandomWorkloadGenerator {
                 },
                 collection_id: None,
                 wall_time_limit: None,
+                priority: None,
                 profile: Rc::new(CpuBurnHomogenous {
                     flops: ctx.gen_range(self.load_min..=self.load_max),
                 }),

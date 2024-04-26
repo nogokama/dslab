@@ -20,7 +20,7 @@ impl ExecutionProfile for TestProfile {
         for i in 0..processes.len() {
             compute_futures.push(processes[i].run_flops(self.compute_work, CoresDependency::Linear));
             for j in 0..processes.len() {
-                transfer_futures.push(processes[i].transfer_data(self.data_transfer, processes[j].id));
+                transfer_futures.push(processes[i].transfer_data_to_process(self.data_transfer, processes[j].id));
             }
         }
         join!(join_all(compute_futures), join_all(transfer_futures));

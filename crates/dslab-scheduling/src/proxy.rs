@@ -54,6 +54,7 @@ impl EventHandler for Proxy {
                 collection_id,
                 profile,
                 wall_time_limit,
+                priority,
             } => {
                 self.jobs_scheduled_time.insert(id.unwrap(), self.ctx.time());
 
@@ -65,6 +66,7 @@ impl EventHandler for Proxy {
                     collection_id,
                     profile,
                     wall_time_limit,
+                    priority,
                 };
                 self.ctx.emit_now(request.clone(), self.scheduler_id);
 
