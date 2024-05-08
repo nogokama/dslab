@@ -50,6 +50,8 @@ impl WorkloadGenerator for RandomWorkloadGenerator {
                     memory_per_node: ctx.gen_range(self.memory_min..=self.memory_max),
                 },
                 collection_id: None,
+                execution_index: None,
+                schedule_after: None,
                 wall_time_limit: None,
                 priority: None,
                 profile: Rc::new(CpuBurnHomogenous {

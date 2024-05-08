@@ -40,5 +40,5 @@ hosts:
   
 monitoring:
   host_load_compression_time_interval: 100
-  scheduler_queue_compression_time_interval: 400
-  display_host_load: true 
+  scheduler_queue_compression_time_interval: 100
+  display_host_load: false 

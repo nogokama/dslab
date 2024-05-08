@@ -3,8 +3,10 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use dslab_core::{cast, log_debug, EventHandler, Id, SimulationContext};
 
 use crate::{
-    cluster_events::HostAdded, monitoring::Monitoring, storage::SharedInfoStorage,
-    workload_generators::events::ExecutionRequest,
+    cluster_events::HostAdded,
+    monitoring::Monitoring,
+    storage::SharedInfoStorage,
+    workload_generators::events::{ExecutionRequest, ExecutionRequestEvent},
 };
 
 pub struct Proxy {
@@ -46,33 +48,14 @@ impl Proxy {
 impl EventHandler for Proxy {
     fn on(&mut self, event: dslab_core::Event) {
         cast!(match event.data {
-            ExecutionRequest {
-                id,
-                name,
-                resources,
-                time,
-                collection_id,
-                profile,
-                wall_time_limit,
-                priority,
-            } => {
-                self.jobs_scheduled_time.insert(id.unwrap(), self.ctx.time());
-
-                let request = ExecutionRequest {
-                    id,
-                    name,
-                    resources,
-                    time,
-                    collection_id,
-                    profile,
-                    wall_time_limit,
-                    priority,
-                };
-                self.ctx.emit_now(request.clone(), self.scheduler_id);
+            ExecutionRequestEvent { request } => {
+                self.jobs_scheduled_time.insert(request.id.unwrap(), self.ctx.time());
 
                 self.job_info_storage
                     .borrow_mut()
-                    .set_execution_request(id.unwrap(), request);
+                    .set_execution_request(request.id.unwrap(), request.clone());
+
+                self.ctx.emit_now(ExecutionRequestEvent { request }, self.scheduler_id);
 
                 self.monitoring.borrow_mut().add_scheduler_queue_size(event.time, 1);
             }

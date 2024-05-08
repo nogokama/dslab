@@ -7,6 +7,9 @@ use async_trait::async_trait;
 use dslab_core::{cast, Event, EventHandler, Id};
 use dslab_core::{log_info, simulation::Simulation, SimulationContext};
 
+use dslab_scheduling::workload_generators::google_trace_reader::{
+    GoogleClusterHostsReader, GoogleTraceWorkloadGenerator,
+};
 use env_logger::Builder;
 use serde::Serialize;
 use serde::{de::DeserializeOwned, Deserialize};
@@ -222,9 +225,13 @@ fn main() {
         .format(|buf, record| writeln!(buf, "{}", record.args()))
         .init();
 
-    let file = File::open("test.yaml").unwrap();
+    let reader = GoogleTraceWorkloadGenerator {
+        instances_path: "/Users/makogon/university/diploma/traces/google_2019/bigquery/instance_events_fixed.csv"
+            .to_string(),
+        collections_path: None,
+        resources_multiplier: 100000.,
+        time_scale: 1e6,
+    };
 
-    let yaml_file: serde_yaml::Value = serde_yaml::from_reader(file).unwrap();
-
-    println!("{:?}", yaml_file);
+    reader.dump_workload_to_native("test.yaml");
 }

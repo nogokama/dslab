@@ -8,6 +8,7 @@ pub struct HostConfig {
     pub id: Id,
     pub name: String,
     pub group_prefix: Option<String>,
+    pub trace_id: Option<u64>,
     pub cpus: u32,
     pub memory: u64,
 
@@ -43,6 +44,7 @@ impl HostConfig {
             name,
             group_prefix,
             cpus: group.cpus,
+            trace_id: None,
             memory: group.memory,
             cpu_speed: group.cpu_speed,
             disk_capacity: group.disk_capacity,
@@ -52,11 +54,35 @@ impl HostConfig {
             local_newtork_latency: group.local_newtork_latency,
         }
     }
+
+    pub fn from_cpus_memory(id: u64, cpus: u32, memory: u64) -> Self {
+        Self {
+            id: 0,
+            trace_id: Some(id),
+            name: format!("host-{}", id),
+            group_prefix: None,
+            cpus,
+            memory,
+            cpu_speed: None,
+            disk_capacity: None,
+            disk_read_bw: None,
+            disk_write_bw: None,
+            local_newtork_bw: None,
+            local_newtork_latency: None,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+pub struct TraceHostsConfig {
+    pub path: String,
+    pub resources_multiplier: f64,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub struct RawSimulationConfig {
     pub hosts: Option<Vec<GroupHostConfig>>,
+    pub trace_hosts: Option<TraceHostsConfig>,
     pub schedulers: Option<Vec<SchedulerConfig>>,
     pub workload: Option<Vec<ClusterWorkloadConfig>>,
     pub network: Option<NetworkConfig>,
@@ -138,6 +164,7 @@ pub struct SimulationConfig {
     pub workload: Option<Vec<ClusterWorkloadConfig>>,
     /// Configurations of physical hosts.
     pub hosts: Vec<GroupHostConfig>,
+    pub trace_hosts: Option<TraceHostsConfig>,
     /// Configurations of schedulers.
     pub schedulers: Vec<SchedulerConfig>,
     pub network: Option<NetworkConfig>,
@@ -158,6 +185,7 @@ impl SimulationConfig {
         Self {
             workload: raw.workload,
             hosts: raw.hosts.unwrap_or_default(),
+            trace_hosts: raw.trace_hosts,
             schedulers: raw.schedulers.unwrap_or_default(),
             network: raw.network,
             monitoring: raw.monitoring,

@@ -1,7 +1,7 @@
 --- 
 workload:
   - type: Native 
-    path: workloads/custom_workload.json
+    path: workloads/custom_workload.yaml
       
 
 hosts: 

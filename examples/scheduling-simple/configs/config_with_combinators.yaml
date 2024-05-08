@@ -1,9 +1,9 @@
 --- 
 workload:
   - type: Native 
-    path: combined_workload.json
+    path: workloads/combined_workload.yaml
     options:
-      profile_path: combined_profiles.yaml
+      profile_path: profiles/combined_profiles.yaml
       
 
 hosts: 

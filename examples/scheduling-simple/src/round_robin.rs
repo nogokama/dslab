@@ -5,80 +5,48 @@ use std::{
 
 use dslab_core::{cast, EventHandler, Id, SimulationContext};
 use dslab_scheduling::{
-    cluster::{JobFinished, Schedule},
+    cluster::{ExecutionFinished, ScheduleExecution},
     cluster_events::HostAdded,
     config::sim_config::HostConfig,
-    scheduler::{Resources, Scheduler},
-    workload_generators::events::ExecutionRequest,
+    scheduler::{CustomScheduler, Resources, Scheduler, SchedulerContext},
+    workload_generators::events::{ExecutionRequest, ExecutionRequestEvent},
 };
 
-pub struct JobInfo {
+pub struct ExecutionInfo {
     id: u64,
     cpu_cores: u32,
     memory: u64,
 }
 
 pub struct RoundRobinScheduler {
-    cluster_id: Id,
     hosts: Vec<HostConfig>,
     available_resources: HashMap<Id, Resources>,
-    queue: VecDeque<JobInfo>,
-    tasks: HashMap<u64, Resources>,
-
-    ctx: SimulationContext,
+    queue: VecDeque<ExecutionInfo>,
+    executions: HashMap<u64, Resources>,
 }
 
 impl RoundRobinScheduler {
-    pub fn new(cluster_id: Id, ctx: SimulationContext) -> RoundRobinScheduler {
+    pub fn new() -> RoundRobinScheduler {
         RoundRobinScheduler {
-            cluster_id,
             hosts: Vec::new(),
             available_resources: HashMap::new(),
             queue: VecDeque::new(),
-            tasks: HashMap::new(),
-            ctx,
+            executions: HashMap::new(),
         }
     }
 
-    fn on_task_info(&mut self, task_id: u64, cpu_cores: u32, memory: u64) {
-        self.queue.push_back(JobInfo {
-            id: task_id,
-            cpu_cores,
-            memory,
-        });
+    fn on_execution_submitted(&mut self, ctx: &SchedulerContext, execution_id: u64, cpu_cores: u32, memory: u64) {}
 
-        self.tasks.insert(task_id, Resources { cpu_cores, memory });
-
-        self.schedule();
-    }
-
-    fn on_task_finished(&mut self, task_id: u64, hosts: Vec<Id>) {
-        let resources = self.tasks.remove(&task_id).unwrap();
-        for host_id in hosts {
-            if let Some(host) = self.available_resources.get_mut(&host_id) {
-                host.cpu_cores += resources.cpu_cores;
-                host.memory += resources.memory;
-            }
-        }
-
-        self.schedule();
-    }
-
-    fn schedule(&mut self) {
-        while let Some(job) = self.queue.pop_front() {
+    fn schedule(&mut self, ctx: &SchedulerContext) {
+        // println!("resources {:?}", self.available_resources);
+        while let Some(execution) = self.queue.pop_front() {
             let mut scheduled = false;
             for machine in &self.hosts {
                 if let Some(resources) = self.available_resources.get_mut(&machine.id) {
-                    if resources.cpu_cores >= job.cpu_cores && resources.memory >= job.memory {
-                        resources.cpu_cores -= job.cpu_cores;
-                        resources.memory -= job.memory;
-                        self.ctx.emit_now(
-                            Schedule {
-                                job_id: job.id,
-                                host_ids: vec![machine.id],
-                            },
-                            self.cluster_id,
-                        );
+                    if resources.cpu_cores >= execution.cpu_cores && resources.memory >= execution.memory {
+                        resources.cpu_cores -= execution.cpu_cores;
+                        resources.memory -= execution.memory;
+                        ctx.schedule_one_host(machine.id, execution.id);
                         scheduled = true;
                         break;
                     }
@@ -86,42 +54,53 @@ impl RoundRobinScheduler {
             }
 
             if !scheduled {
-                self.queue.push_front(job);
+                self.queue.push_front(execution);
                 break;
             }
         }
     }
 }
 
-impl EventHandler for RoundRobinScheduler {
-    fn on(&mut self, event: dslab_core::Event) {
-        cast!(match event.data {
-            HostAdded { host } => {
-                self.available_resources.insert(
-                    host.id,
-                    Resources {
-                        cpu_cores: host.cpus,
-                        memory: host.memory,
-                    },
-                );
-                self.hosts.push(host);
-            }
-            ExecutionRequest { id, resources, .. } => {
-                self.on_task_info(id.unwrap(), resources.cpu_per_node, resources.memory_per_node);
-            }
-            JobFinished { job_id, hosts } => {
-                self.on_task_finished(job_id, hosts);
-            }
-        })
-    }
-}
-
 impl Scheduler for RoundRobinScheduler {
-    fn id(&self) -> Id {
-        self.ctx.id()
-    }
+    fn on_execution_finished(&mut self, ctx: &SchedulerContext, execution_id: u64, hosts: Vec<Id>) {
+        let resources = self.executions.remove(&execution_id).unwrap();
+        for host_id in hosts {
+            if let Some(host) = self.available_resources.get_mut(&host_id) {
+                host.cpu_cores += resources.cpu_cores;
+                host.memory += resources.memory;
+            }
+        }
 
-    fn name(&self) -> String {
-        self.ctx.name().to_string()
+        self.schedule(ctx);
+    }
+    fn on_execution_request(&mut self, ctx: &SchedulerContext, request: ExecutionRequest) {
+        let execution_id = request.id.unwrap();
+        let cpu_cores = request.resources.cpu_per_node;
+        let memory = request.resources.memory_per_node;
+        self.queue.push_back(ExecutionInfo {
+            id: execution_id,
+            cpu_cores,
+            memory,
+        });
+
+        self.executions.insert(execution_id, Resources { cpu_cores, memory });
+
+        self.schedule(ctx);
+    }
+    fn on_host_added(&mut self, host: HostConfig) {
+        self.available_resources.insert(
+            host.id,
+            Resources {
+                cpu_cores: host.cpus,
+                memory: host.memory,
+            },
+        );
+        self.hosts.push(host);
+    }
+    fn on_collection_event(
+        &mut self,
+        ctx: &SchedulerContext,
+        collection_event: dslab_scheduling::workload_generators::events::CollectionEvent,
+    ) {
     }
 }

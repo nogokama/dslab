@@ -7,6 +7,7 @@ edition = "2021"
 [dependencies]
 dslab-core = { path = "../../crates/dslab-core", features = ["async_mode"] }
 dslab-compute = { path = "../../crates/dslab-compute" }
+dslab-scheduling = {path = "../../crates/dslab-scheduling" }
 
 clap = { version = "3.1.12", features = ["cargo", "derive"] }
 log = "0.4.14"
@@ -21,3 +22,4 @@ serde_yaml = "0.8"
 futures="0.3"
 
 async-trait = "0.1.78"
+prost-build = "0.12.4"

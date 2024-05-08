@@ -3,7 +3,7 @@ use std::{os::unix::process, rc::Rc};
 use async_trait::async_trait;
 use dslab_compute::multicore::CoresDependency;
 use futures::future::join_all;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::host::process::HostProcessInstance;
 
@@ -11,7 +11,7 @@ use crate::execution_profiles::profile::ExecutionProfile;
 
 use super::profile::NameTrait;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct CpuBurnHomogenous {
     pub flops: f64,
 }

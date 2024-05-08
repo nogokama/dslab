@@ -10,7 +10,10 @@ use crate::{
     execution_profiles::builder::ProfileBuilder,
 };
 
-use super::{generator::WorkloadGenerator, native::NativeWorkloadGenerator, random::RandomWorkloadGenerator};
+use super::{
+    generator::WorkloadGenerator, google_trace_reader::GoogleTraceWorkloadGenerator, native::NativeWorkloadGenerator,
+    random::RandomWorkloadGenerator,
+};
 
 /// Holds supported VM dataset types.
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -50,7 +53,9 @@ pub fn workload_resolver(
         WorkloadType::Random => Box::new(RandomWorkloadGenerator::from_options(
             options.as_ref().expect("Random workload options are required"),
         )),
-        WorkloadType::Google => unimplemented!(),
+        WorkloadType::Google => Box::new(GoogleTraceWorkloadGenerator::from_options(
+            options.as_ref().expect("Google trace workload options are required"),
+        )),
         WorkloadType::Alibaba => unimplemented!(),
         WorkloadType::SWF => unimplemented!(),
         WorkloadType::Native => Box::new(NativeWorkloadGenerator::new(

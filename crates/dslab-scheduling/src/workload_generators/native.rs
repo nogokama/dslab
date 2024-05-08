@@ -9,18 +9,26 @@ use super::{
 };
 
 #[derive(Serialize, Deserialize, Clone)]
-struct JobDefinition {
+pub struct NativeExecutionDefinition {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     pub submit_time: f64,
     pub resources: ResourceRequirements,
     pub profile: ProfileDefinition,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub wall_time_limit: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collection_id: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution_index: Option<u64>,
 }
 
 pub struct NativeWorkloadGenerator {
-    workload: Vec<JobDefinition>,
+    workload: Vec<NativeExecutionDefinition>,
     profile_builder: ProfileBuilder,
     profile_path: Option<String>,
 }
@@ -31,10 +39,10 @@ impl NativeWorkloadGenerator {
         profile_path: Option<String>,
         mut profile_builder: ProfileBuilder,
     ) -> NativeWorkloadGenerator {
-        let jobs: Vec<JobDefinition> = serde_json::from_str(
+        let jobs: Vec<NativeExecutionDefinition> = serde_yaml::from_str(
             &std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("Can't read file {}", path)),
         )
-        .unwrap_or_else(|reason| panic!("Can't parse JSON from file {}: {}", path, reason));
+        .unwrap_or_else(|reason| panic!("Can't parse YAML from file {}: {}", path, reason));
 
         NativeWorkloadGenerator {
             workload: jobs,
@@ -63,7 +71,9 @@ impl WorkloadGenerator for NativeWorkloadGenerator {
                 id: job.id,
                 name: job.name.clone(),
                 time: job.submit_time,
+                schedule_after: None,
                 collection_id: None,
+                execution_index: None,
                 resources: job.resources.clone(),
                 profile: self.profile_builder.build(job.profile.clone()),
                 wall_time_limit: job.wall_time_limit,

@@ -22,10 +22,11 @@ use crate::{
     host::{cluster_host::ClusterHost, storage::ProcessHostStorage},
     monitoring::Monitoring,
     proxy::Proxy,
-    scheduler::Scheduler,
+    scheduler::{CustomScheduler, Scheduler, SchedulerContext, SchedulerInvoker},
     storage::SharedInfoStorage,
     workload_generators::{
-        generator::WorkloadGenerator, random::RandomWorkloadGenerator, workload_type::workload_resolver,
+        events::ExecutionRequestEvent, generator::WorkloadGenerator, google_trace_reader::GoogleClusterHostsReader,
+        random::RandomWorkloadGenerator, workload_type::workload_resolver,
     },
 };
 
@@ -95,7 +96,17 @@ impl ClusterSchedulingSimulation {
 
         cluster_simulation.register_key_getters();
 
-        cluster_simulation.build_cluster(config.hosts, config.network, network_opt);
+        let hosts = if let Some(trace_hosts_config) = config.trace_hosts {
+            let config_reader = GoogleClusterHostsReader {
+                path: trace_hosts_config.path,
+                resource_multiplier: trace_hosts_config.resources_multiplier,
+            };
+            config_reader.read_cluster()
+        } else {
+            vec![]
+        };
+
+        cluster_simulation.build_cluster(config.hosts, hosts, config.network, network_opt);
 
         cluster_simulation
     }
@@ -127,6 +138,7 @@ impl ClusterSchedulingSimulation {
     pub fn build_cluster(
         &mut self,
         hosts_groups: Vec<GroupHostConfig>,
+        hosts: Vec<HostConfig>,
         network_config: Option<NetworkConfig>,
         mut network: Option<Rc<RefCell<Network>>>,
     ) {
@@ -150,6 +162,9 @@ impl ClusterSchedulingSimulation {
                     );
                 }
             }
+        }
+        for host_config in hosts {
+            self.build_host(host_config, network_config.as_ref(), network.clone());
         }
     }
 
@@ -237,7 +252,7 @@ impl ClusterSchedulingSimulation {
         self.profile_builder.register_profile::<T, &str>(name)
     }
 
-    pub fn run_with_custom_scheduler<T: EventHandler + Scheduler + 'static>(&mut self, scheduler: T) {
+    pub fn run_with_custom_scheduler<T: EventHandler + CustomScheduler + 'static>(&mut self, scheduler: T) {
         let scheduler_id = scheduler.id();
         let name = scheduler.name().clone();
         self.sim.add_handler(name, rc!(refcell!(scheduler)));
@@ -257,6 +272,13 @@ impl ClusterSchedulingSimulation {
         self.sim.step_until_no_events();
 
         println!("SIMULATION FINISHED AT: {}", self.sim.time());
+    }
+
+    pub fn run_with_scheduler<T: Scheduler + 'static>(&mut self, scheduler: T) {
+        let ctx = self.sim.create_context("scheduler");
+        let invoker = SchedulerInvoker::new(scheduler, ctx, self.get_cluster_id());
+
+        self.run_with_custom_scheduler(invoker);
     }
 
     fn generate_workload(&mut self) {
@@ -287,7 +309,13 @@ impl ClusterSchedulingSimulation {
 
             for execution_request in workload {
                 let time = execution_request.time;
-                generator_ctx.emit(execution_request, proxy_id, time);
+                generator_ctx.emit(
+                    ExecutionRequestEvent {
+                        request: execution_request,
+                    },
+                    proxy_id,
+                    time,
+                );
             }
         }
     }

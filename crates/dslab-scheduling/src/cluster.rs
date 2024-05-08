@@ -28,19 +28,19 @@ pub struct ScheduleError {
 }
 
 #[derive(Clone, Serialize)]
-pub struct Schedule {
-    pub job_id: u64,
+pub struct ScheduleExecution {
+    pub execution_id: u64,
     pub host_ids: Vec<Id>,
 }
 
 #[derive(Clone, Serialize)]
-pub struct Cancel {
-    pub task_id: u64,
+pub struct CancelExecution {
+    pub execution_id: u64,
 }
 
 #[derive(Clone, Serialize)]
-pub struct JobFinished {
-    pub job_id: u64,
+pub struct ExecutionFinished {
+    pub execution_id: u64,
     pub hosts: Vec<Id>,
 }
 
@@ -92,13 +92,18 @@ impl Cluster {
     pub fn add_host(&self, host_config: HostConfig, host: Rc<ClusterHost>) {
         self.hosts_configs.borrow_mut().insert(host.id(), host_config.clone());
         self.hosts.borrow_mut().insert(host.id(), host);
+        if let Some(trace_id) = host_config.trace_id {
+            self.shared_info_storage
+                .borrow_mut()
+                .insert_host_with_trace_id(host_config.id, trace_id);
+        }
     }
 
     pub fn get_hosts(&self) -> Vec<HostConfig> {
         self.hosts_configs.borrow().values().cloned().collect::<Vec<_>>()
     }
 
-    fn schedule_task(&self, host_ids: Vec<Id>, execution_id: u64) {
+    fn schedule_execution(&self, host_ids: Vec<Id>, execution_id: u64) {
         let hosts = host_ids
             .iter()
             .map(|id| self.hosts.borrow().get(id).unwrap().clone())
@@ -135,8 +140,8 @@ impl Cluster {
         self.deallocate_processes(processes).await;
 
         self.ctx.emit_now(
-            JobFinished {
-                job_id: request.id.unwrap(),
+            ExecutionFinished {
+                execution_id: request.id.unwrap(),
                 hosts: hosts_ids,
             },
             self.scheduler_id,
@@ -189,7 +194,7 @@ impl Cluster {
         }
     }
 
-    fn cancel_task(&self, task_id: u64) {
+    fn cancel_execution(&self, task_id: u64) {
         log_error!(self.ctx, "cancel task: {} not implemented", task_id)
     }
 }
@@ -197,12 +202,12 @@ impl Cluster {
 impl EventHandler for Cluster {
     fn on(&mut self, event: Event) {
         cast!(match event.data {
-            Schedule { job_id, host_ids } => {
-                log_debug!(self.ctx, "schedule job: {} on machine: {:?}", job_id, host_ids);
-                self.schedule_task(host_ids, job_id);
+            ScheduleExecution { execution_id, host_ids } => {
+                log_debug!(self.ctx, "schedule job: {} on machine: {:?}", execution_id, host_ids);
+                self.schedule_execution(host_ids, execution_id);
             }
-            Cancel { task_id } => {
-                self.cancel_task(task_id)
+            CancelExecution { execution_id } => {
+                self.cancel_execution(execution_id);
             }
         });
     }
