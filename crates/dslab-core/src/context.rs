@@ -23,6 +23,7 @@ async_mode_enabled!(
 );
 
 /// A facade for accessing the simulation state and producing events from simulation components.
+#[derive(Clone)]
 pub struct SimulationContext {
     id: Id,
     name: String,

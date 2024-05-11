@@ -1,0 +1,20 @@
+[package]
+name = "scheduling-simple"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dslab-core = { path = "../../crates/dslab-core", features = ["async_mode"] }
+dslab-scheduling = { path = "../../crates/dslab-scheduling" }
+dslab-network = { path = "../../crates/dslab-network" }
+dslab-compute = {path = "../../crates/dslab-compute" }
+
+clap = { version = "3.1.12", features = ["cargo", "derive"] }
+log = "0.4.14"
+env_logger = "0.9.0"
+sugars = "3.0.0"
+serde = { version = "1.0", features = ["derive"] }
+async-trait = "0.1"
+futures = "0.3"
